@@ -11,7 +11,10 @@
     "format": "biome check --write .",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "dev": "pnpm --filter @isodiagrammer/web dev",
+    "build": "pnpm --filter @isodiagrammer/web build",
+    "e2e": "pnpm --filter @isodiagrammer/web e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.9",

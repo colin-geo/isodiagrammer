@@ -1,8 +1,8 @@
 # Isometric Diagrammer
 
-Turn a YAML description of your infrastructure into a Cloudcraft-style **isometric diagram**, with automatic layout, fine-tuning with `at:` coordinates, and SVG/PNG export. A CLI for docs and CI pipelines is available now; the web editor with drag-and-drop arrives next.
+Turn a YAML description of your infrastructure into a Cloudcraft-style **isometric diagram**, with automatic layout, fine-tuning with `at:` coordinates, and SVG/PNG export. Comes as a web editor (live preview, autocomplete, export) and a CLI for docs and CI pipelines. Drag-and-drop editing arrives next.
 
-> **Status:** early development: milestones M0–M1 done. See [PLAN.md](PLAN.md) for the design and roadmap.
+> **Status:** early development: milestones M0–M2 done (engine, CLI, web editor). See [PLAN.md](PLAN.md) for the design and roadmap.
 
 ```yaml
 version: 1
@@ -26,6 +26,15 @@ links:
 ```
 
 More in [`examples/`](examples/).
+
+## Web editor
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:5173
+```
+
+YAML on the left, live preview on the right. Schema autocomplete (<kbd>Ctrl</kbd>+<kbd>Space</kbd>) and hover docs work in the editor; problems are underlined and listed below it. Drag or scroll to pan the preview, and use <kbd>Ctrl</kbd>+wheel to zoom. Your work autosaves in the browser; **Open**/**Save** read and write `.yaml` files, and **Export** produces SVG or PNG.
 
 ## CLI
 
@@ -58,6 +67,8 @@ pnpm test:run    # single run (CI); add -u to accept intentional golden changes
 pnpm lint        # Biome lint + format check
 pnpm format      # apply Biome fixes
 pnpm typecheck
+pnpm dev         # web editor dev server
+pnpm e2e         # Playwright end-to-end tests (CHROMIUM_PATH=/usr/bin/chromium to use a system browser)
 ```
 
 | Path | What |
@@ -65,6 +76,7 @@ pnpm typecheck
 | `packages/core` | Framework-free engine: parse → resolve → layout → scene → SVG, plus YAML edit operations |
 | `packages/core/src/__golden__` | Committed SVG/diagnostic snapshots of every example: review changes in diffs |
 | `packages/cli` | The `isodiagram` command |
+| `packages/web` | The web editor (Svelte 5 + Vite) |
 | `examples/` | Example diagrams (also the golden-test fixtures) |
 
 ## License

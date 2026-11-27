@@ -175,7 +175,7 @@ dslJsonSchema(): JSONSchema
 
 - In the web app the whole pipeline runs in a **Web Worker**. The UI thread only applies the SVG string and handles input.
 - Layout results are cached by a structural hash (nodes, `in`, `at`, sizes, links), so editing a label doesn't re-run ELK.
-- `elkjs` is loaded lazily, only when some node is actually unpinned.
+- `elkjs` is loaded lazily, only when some node is actually unpinned. **Gotcha (found in M2):** loaded inside a Web Worker, `elk.bundled.js` replaces `self.onmessage` with its own dispatcher. Any worker that runs the engine must listen with `addEventListener` and ignore foreign messages (see `compile.worker.ts`).
 - ELK's hierarchical mode dominates layout time (M0: ~50 ms at 20 resources, ~300 ms at 100, ~3 s at 300). Above a threshold (start at ~120 resources, tune later) the engine switches to `SEPARATE_CHILDREN`, which took ~110 ms at 300 resources but ignores cross-group edges when placing nodes. The UI should show an indicator while a layout is running.
 
 ---
@@ -345,7 +345,7 @@ Each milestone ends with something usable. The three riskiest pieces are spiked 
 - _Exit:_ the examples render from the CLI and the golden tests pass.
 - _Changed from the original plan:_ ELK placement (from Spike B) was promoted in M1 instead of rejecting unpinned nodes until M4, because it was already working and tested.
 
-**M2: Web editor**
+**M2: Web editor** ✅ done, notes in §16
 
 - CodeMirror with schema autocomplete and exact diagnostics, worker pipeline, pan/zoom.
 - SVG/PNG export, autosave, open/save.
@@ -466,3 +466,32 @@ The schema rejects these as unknown keys rather than silently ignoring them.
 - draw order checked against a ray-cast ground truth
 - the visible-arrowhead routing property, mutation-checked
 - CLI tests run as real subprocesses
+
+---
+
+## 16. M2 notes (2026-11-27)
+
+**What shipped.** `packages/web` (Svelte 5 + Vite 8):
+- **Editor:** CodeMirror with autocomplete and hover docs driven by the schema (`codemirror-json-schema`), and diagnostics from the engine shown inline and in a clickable problems list.
+- **Rendering:** the whole pipeline runs in a Web Worker, debounced, with stale results dropped.
+- **Preview:** pan/zoom with fit-to-view and keyboard support. When the current text can't be parsed, the last valid render stays visible.
+- **Files and export:** SVG/PNG export, open/save through the File System Access API (with a download fallback), autosave, an examples menu, a resizable split, and a quick-reference panel generated from the engine's catalogue.
+
+**Changes from the plan:**
+- Autosave uses `localStorage`, not IndexedDB. Documents are small text, so it's enough. IndexedDB arrives with uploaded icon packs (M5), and autosave can move then.
+- Draft-07 JSON Schema (not 2020-12) is the single output format. It's what `codemirror-json-schema` and the VS Code YAML extension handle best.
+- `type:` accepts a built-in name or any string, so autocomplete can suggest built-in type names. A test keeps that list in sync with the catalogue.
+
+**Decisions:**
+- Preview input follows canvas-tool convention: drag or wheel pans; Ctrl/⌘ + wheel or pinch zooms. M3 will claim left-drag *on a node* for moving it, and dragging the background will keep panning.
+- The preview shows the diagram's own theme (`settings.theme`), not the UI's, so what you see is what you export. A dark UI showing a light diagram is intended.
+- Editor ligatures are off, so `->` reads as the two characters you type.
+
+**Tooling:**
+- `svelte-check` needs TypeScript ≤ 6, so the web package pins TypeScript 6 locally. Everything else uses TypeScript 7.
+- Biome lints `.svelte` script blocks without seeing the template, so it reports template-only uses as unused. Its auto-fix would *delete* those imports, so `noUnusedImports` and `noUnusedVariables` are off for `*.svelte` (`svelte-check` covers them).
+- E2E tests: 11 Playwright tests against the production build, with a CI job. Locally, `CHROMIUM_PATH=/usr/bin/chromium pnpm e2e` uses the system browser.
+
+**To revisit:**
+- The main bundle is about 345 KB gzipped (zod, yaml, CodeMirror and the schema plugin's markdown renderer). ELK (about 1.4 MB) is already split out and only loads in the worker. Options for M6: precompute the JSON Schema at build time so the main thread doesn't need zod, and lazy-load the hover renderer.
+- PNG export uses the browser's fonts, so it can differ from the CLI's resvg output. That's the font-consistency risk again (§13).

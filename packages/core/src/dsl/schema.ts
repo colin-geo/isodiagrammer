@@ -44,8 +44,28 @@ const visualFields = {
 
 export const TypeDef = z.strictObject(visualFields);
 
+/** Built-in type names; keys of CATALOG (checked by a test). Listed here for editor autocomplete. */
+export const BUILTIN_TYPES = [
+  "server",
+  "container",
+  "function",
+  "loadbalancer",
+  "queue",
+  "database",
+  "cache",
+  "storage",
+  "firewall",
+  "area",
+  "user",
+  "internet",
+  "cloud",
+] as const;
+
 export const Resource = z.strictObject({
-  type: z.string().optional().describe("Built-in type (server, database, …) or a key of `types`"),
+  type: z
+    .union([z.enum(BUILTIN_TYPES), z.string()])
+    .optional()
+    .describe("Built-in type (server, database, …) or a key of `types`"),
   in: Id.optional().describe("Parent group id"),
   at: Vec2.optional().describe(
     "Pinned position, relative to the parent group. Omit for auto-layout.",
@@ -120,9 +140,28 @@ export const DiagramDsl = z.strictObject({
   settings: Settings.optional(),
   icons: Icons.optional(),
   types: z.record(Id, TypeDef).optional(),
-  groups: z.record(Id, Group.nullable()).optional(),
-  resources: z.record(Id, Resource.nullable()).optional(),
-  links: z.array(Link).optional(),
+  groups: z
+    .record(
+      Id,
+      Group.nullable().describe(
+        "A group: an area on the ground that holds resources and other groups. Every field is optional.",
+      ),
+    )
+    .optional()
+    .describe("Groups (regions, VPCs, subnets…), keyed by id"),
+  resources: z
+    .record(
+      Id,
+      Resource.nullable().describe(
+        "A resource: a server, database, queue… Every field is optional; without `at` it is placed automatically.",
+      ),
+    )
+    .optional()
+    .describe("Resources, keyed by id. Ids are shared with groups."),
+  links: z
+    .array(Link)
+    .optional()
+    .describe('Connections: "a -> b", "a <-> b", "a -- b" or { from, to, … }'),
 });
 
 export type DiagramDsl = z.infer<typeof DiagramDsl>;
@@ -137,7 +176,7 @@ export type ShapeName = z.infer<typeof Shape>;
 /** JSON Schema for editors (CodeMirror, VS Code `yaml.schemas`). */
 export function dslJsonSchema(): object {
   return {
-    ...z.toJSONSchema(DiagramDsl, { target: "draft-2020-12", io: "input" }),
+    ...z.toJSONSchema(DiagramDsl, { target: "draft-7", io: "input" }),
     title: "Isometric Diagrammer DSL v1",
   };
 }

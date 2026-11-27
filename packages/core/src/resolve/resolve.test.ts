@@ -123,3 +123,9 @@ links:
     expect(model.links).toHaveLength(1);
   });
 });
+
+test("BUILTIN_TYPES (used for autocomplete) matches the catalog", async () => {
+  const { BUILTIN_TYPES } = await import("../dsl/schema.ts");
+  const { CATALOG } = await import("./catalog.ts");
+  expect([...BUILTIN_TYPES].sort()).toEqual(Object.keys(CATALOG).sort());
+});
