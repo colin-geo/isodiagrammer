@@ -1,5 +1,5 @@
 /**
- * Spike A — comment-preserving YAML edits as minimal text changes (PLAN.md §7).
+ * Comment-preserving YAML edits as minimal text changes (PLAN.md §7; proven in M0 Spike A).
  *
  * Instead of re-serialising the whole document (which loses formatting), we use the
  * source ranges the `yaml` parser records on every node and emit the smallest

@@ -198,6 +198,7 @@ Layout runs in **ground-plane grid space** (2D, integer cells). Projection to is
 
 ### 6.2 Link routing
 
+- Routing runs in the **view frame** (after rotation), because which faces are visible depends on the view. Arrowheads into a solid must land on a visible (front) edge. M1's simple router guarantees this by wrapping round the side of the target, and the A* router must keep the guarantee (it's a property test in `route.test.ts`).
 - **Orthogonal routes** use A* on the cell grid. Resource footprints are obstacles; group borders are not. Cost is length + a turn penalty + a penalty for crossing an existing link.
 - Links leave and enter on the sides of a footprint (left/right/top/bottom). The side is chosen by the router, or set with `fromSide` / `toSide`.
 - `via:` waypoints are routed segment by segment.
@@ -336,12 +337,13 @@ Each milestone ends with something usable. The three riskiest pieces are spiked 
 - Spike C: depth sort of solids across all four rotations.
 - _Exit:_ the spikes either confirm the approach or change this plan (record any changes here).
 
-**M1: Static core and CLI**
+**M1: Static core and CLI** ✅ done, notes in §15
 
-- parse → schema → resolve → manual-only placement (unpinned nodes are an error for now) → scene → SVG.
+- parse → schema → resolve → placement → scene → SVG.
 - Shapes, grid, labels, straight/L-shaped links, `builtin:` and URL icons.
 - CLI `render`/`validate`/`schema`.
 - _Exit:_ the examples render from the CLI and the golden tests pass.
+- _Changed from the original plan:_ ELK placement (from Spike B) was promoted in M1 instead of rejecting unpinned nodes until M4, because it was already working and tested.
 
 **M2: Web editor**
 
@@ -356,7 +358,9 @@ Each milestone ends with something usable. The three riskiest pieces are spiked 
 
 **M4: Auto layout and routing**
 
-- ELK placement with pinning, A* orthogonal routing, `via`, `freeze`/"Pin all".
+- ELK placement exists since M1. M4 work: quality with pinned nodes, `settings.layout.direction`, `freeze`/"Pin all".
+- A* orthogonal routing with obstacle avoidance and link separation (M1's wrap-around routes can run long and overlap each other), `via`, `fromSide`/`toSide`.
+- Label collision avoidance (link labels currently sit at the path midpoint, even when that's under a box).
 - _Exit:_ a diagram with no `at:` at all looks good, and pinning one node doesn't disturb the others unexpectedly.
 
 **M5: Icons**
@@ -365,6 +369,7 @@ Each milestone ends with something usable. The three riskiest pieces are spiked 
 
 **M6: Polish and publish**
 
+- Notes overlay (`notes:` in §4.1), which wasn't scheduled in any earlier milestone.
 - Themes, example gallery, docs site (DSL reference generated from the schema), share links, PWA.
 - npm publish via Changesets, landing page, Tiny Tool Town submission.
 
@@ -387,14 +392,14 @@ Each milestone ends with something usable. The three riskiest pieces are spiked 
 - **Layout quality with pins**: snap-and-nudge works (§14), but ELK still lays out as if pinned nodes sat where ELK would have put them. Unpinned neighbours can end up looking unrelated to a pinned node. Revisit in M4 with real diagrams. One option: seed ELK with pinned positions via its interactive strategies.
 - **elkjs licence**: EPL-2.0 (or GPL-3.0). Fine as an unmodified dependency of an MIT project. Keep it unmodified and list it in the Credits page and third-party notices.
 - **elkjs size**: about 1 MB+, so it must be lazy-loaded. If that's unacceptable, a small custom layered layout is the fallback.
-- **Font consistency**: identical metrics and rendering across browsers and resvg depend on bundling and, where possible, embedding one font.
+- **Font consistency** (raised in priority after M1: resvg fell back to a monospace system font when Inter wasn't installed, so PNGs from the CLI look different from the browser): identical metrics and rendering across browsers and resvg depend on bundling and, where possible, embedding one font.
 - **Naming**: check that the npm scope `@isodiagrammer` and the domain are available before publishing.
 
 ---
 
 ## 14. M0 spike findings (2026-11-27)
 
-The spike code lives in `packages/spikes` and is promoted into `packages/core` during M1. All three spikes confirmed the approach.
+The spike code was promoted into `packages/core` in M1 and the `packages/spikes` package removed; see git history for the originals. All three spikes confirmed the approach.
 
 ### Spike A: comment-preserving YAML edits ✅
 
@@ -428,3 +433,36 @@ The spike code lives in `packages/spikes` and is promoted into `packages/core` d
 - TypeScript 7 (native `tsc`), Vitest 5 and Biome 2.6 work together without workarounds.
 - Node ≥ 25 no longer ships corepack. Install pnpm with `npm i -g pnpm` (or use `npx pnpm@10`).
 - Biome's `migrate` turned `recommended: true` into `preset: "none"`, which silently disabled linting. It's corrected to `preset: "recommended"`.
+
+---
+
+## 15. M1 notes (2026-11-27)
+
+**Implemented DSL subset.** Everything in §4 except:
+- `icons.packs` (M5)
+- `notes` (M6)
+- `settings.layout.direction` (M4)
+- link `via`, `fromSide` and `toSide` (M4)
+
+The schema rejects these as unknown keys rather than silently ignoring them.
+
+**Defaults chosen from looking at real renders:**
+- `groupPadding` 2 (1 was cramped, as Spike B suggested)
+- `spacing` 3 (2 left no room for links between siblings)
+
+**Group labels go on the front-left edge.** On the back edge, tall resources inside the group hid them.
+
+**Text metrics are still an approximation** (a character-width estimate), so label bounds are deterministic but not exact. The bundled-font metrics table from §5.2 is still needed and is now the main font-consistency task (§13).
+
+**Icons from files and URLs are embedded as `<image>` data URIs**, so they can't be recoloured. Parsing SVG icons into recolourable `<symbol>`s is part of M5. `builtin:` glyphs are real symbols and recolour fine, including in resvg.
+
+**The Node rule is enforced by lint.** Biome's `noNodejsModules` rule applies to `packages/core/src` (excluding tests), so the engine stays browser-safe.
+
+**Node ≥ 23.6 is required** for development, because the CLI runs its TypeScript source directly through Node's type stripping. Publishing (M6) needs a build step, since Node won't strip types inside `node_modules`.
+
+**Test coverage:** 68 tests, including:
+- golden SVGs for every example and golden diagnostics for every invalid example
+- placement invariants fuzz-tested across random group trees and pins
+- draw order checked against a ray-cast ground truth
+- the visible-arrowhead routing property, mutation-checked
+- CLI tests run as real subprocesses

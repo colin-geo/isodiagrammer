@@ -1,5 +1,5 @@
 import { defineProject } from "vitest/config";
 
 export default defineProject({
-  test: { name: "spikes", environment: "node" },
+  test: { name: "cli", environment: "node", testTimeout: 30000 },
 });
