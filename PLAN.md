@@ -14,7 +14,7 @@ The goal is to publish it for others to use (e.g. Tiny Tool Town), so polish, do
 
 ### Guiding principles
 
-1. **The YAML text is the single source of truth.** The preview never holds state the text doesn't. Drags, palette drops and context-menu actions all produce *text edits*. One consequence: the editor's undo history is the app's only undo stack.
+1. **The YAML text is the single source of truth.** The preview never holds state the text doesn't. Drags, palette drops and context-menu actions all produce _text edits_. One consequence: the editor's undo history is the app's only undo stack.
 2. **The engine is a pure TypeScript library with no DOM.** Any input that comes from the platform (icons, fonts, files) is injected through an interface.
 3. **Rendering doesn't depend on the preview.** The core produces a complete, self-contained SVG string, and export reuses that exact output. Nothing is scraped from the live DOM.
 4. **Results are deterministic.** The same input gives byte-identical SVG in the browser and in Node. That's what makes golden tests and CI rendering trustworthy.
@@ -26,19 +26,19 @@ The goal is to publish it for others to use (e.g. Tiny Tool Town), so polish, do
 
 ### 2.1 Stack
 
-| Area | Choice | Why |
-|---|---|---|
-| Monorepo | **pnpm workspaces** | Fast, strict dependency isolation, good workspace protocol |
-| Language | TypeScript, `strict: true` everywhere | |
-| Lint/format | **Biome** | One fast tool instead of ESLint + Prettier |
-| Tests | **Vitest** (unit/golden), **Playwright** (e2e, visual) | |
-| Validation | **Zod 4** (+ `z.toJSONSchema`) | |
-| YAML | **`yaml`** (eemeli) | CST, source ranges, comment-preserving edits |
-| Layout | **`elkjs`** (lazy-loaded, run in a Web Worker) | Compound (nested) graphs, layered layout |
-| Editor | **CodeMirror 6** + `codemirror-json-schema` (YAML mode) | Schema autocomplete, hover, lint |
-| UI framework | **Svelte 5** | The UI is thin (the core renders the SVG). Svelte gives small bundles and simple reactivity. Easy to swap because it touches very little. |
-| PNG (Node) | **`@resvg/resvg-js`** | Fast and deterministic, no headless browser |
-| Release | **Changesets** (npm packages), static hosting for the web app (Cloudflare Pages or GitHub Pages) | |
+| Area         | Choice                                                                                           | Why                                                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Monorepo     | **pnpm workspaces**                                                                              | Fast, strict dependency isolation, good workspace protocol                                                                                |
+| Language     | TypeScript, `strict: true` everywhere                                                            |                                                                                                                                           |
+| Lint/format  | **Biome**                                                                                        | One fast tool instead of ESLint + Prettier                                                                                                |
+| Tests        | **Vitest** (unit/golden), **Playwright** (e2e, visual)                                           |                                                                                                                                           |
+| Validation   | **Zod 4** (+ `z.toJSONSchema`)                                                                   |                                                                                                                                           |
+| YAML         | **`yaml`** (eemeli)                                                                              | CST, source ranges, comment-preserving edits                                                                                              |
+| Layout       | **`elkjs`** (lazy-loaded, run in a Web Worker)                                                   | Compound (nested) graphs, layered layout                                                                                                  |
+| Editor       | **CodeMirror 6** + `codemirror-json-schema` (YAML mode)                                          | Schema autocomplete, hover, lint                                                                                                          |
+| UI framework | **Svelte 5**                                                                                     | The UI is thin (the core renders the SVG). Svelte gives small bundles and simple reactivity. Easy to swap because it touches very little. |
+| PNG (Node)   | **`@resvg/resvg-js`**                                                                            | Fast and deterministic, no headless browser                                                                                               |
+| Release      | **Changesets** (npm packages), static hosting for the web app (Cloudflare Pages or GitHub Pages) |                                                                                                                                           |
 
 ---
 
@@ -67,17 +67,17 @@ version: 1
 title: Checkout platform
 
 settings:
-  view: { rotation: 0 }               # 0 | 90 | 180 | 270, rotates the whole scene
-  grid: { style: technical }          # none | simple | technical
+  view: { rotation: 0 } # 0 | 90 | 180 | 270, rotates the whole scene
+  grid: { style: technical } # none | simple | technical
   layout: { direction: east, spacing: 2, groupPadding: 1 }
-  canvas: { padding: 2 }              # or { at: [x, y], size: [w, h] } to force bounds
-  theme: light                        # light | dark | <custom theme name>
+  canvas: { padding: 2 } # or { at: [x, y], size: [w, h] } to force bounds
+  theme: light # light | dark | <custom theme name>
 
 icons:
   packs:
     fa: builtin:fontawesome-free
     k8s: builtin:kubernetes
-    acme: ./icons/acme                # folder, or URL to a pack.json
+    acme: ./icons/acme # folder, or URL to a pack.json
   aliases:
     db: fa:solid/database
 
@@ -90,15 +90,15 @@ types:
     icon: { src: fa:solid/server, faces: [top] }
 
 groups:
-  cloud:   { label: AWS eu-west-1, style: region }
-  vpc:     { in: cloud, label: VPC }
-  public:  { in: vpc, label: Public subnet }
-  private: { in: vpc, label: Private subnet, at: [0, 6] }   # pinned inside vpc
+  cloud: { label: AWS eu-west-1, style: region }
+  vpc: { in: cloud, label: VPC }
+  public: { in: vpc, label: Public subnet }
+  private: { in: vpc, label: Private subnet, at: [0, 6] } # pinned inside vpc
 
 resources:
-  lb:    { type: loadbalancer, in: public }
-  web:   { type: api, in: public }
-  db:    { type: database, in: private, at: [4, 1], icon: "@db" }
+  lb: { type: loadbalancer, in: public }
+  web: { type: api, in: public }
+  db: { type: database, in: private, at: [4, 1], icon: "@db" }
   cache: { type: cache, in: private }
 
 links:
@@ -176,6 +176,7 @@ dslJsonSchema(): JSONSchema
 - In the web app the whole pipeline runs in a **Web Worker**. The UI thread only applies the SVG string and handles input.
 - Layout results are cached by a structural hash (nodes, `in`, `at`, sizes, links), so editing a label doesn't re-run ELK.
 - `elkjs` is loaded lazily, only when some node is actually unpinned.
+- ELK's hierarchical mode dominates layout time (M0: ~50 ms at 20 resources, ~300 ms at 100, ~3 s at 300). Above a threshold (start at ~120 resources, tune later) the engine switches to `SEPARATE_CHILDREN`, which took ~110 ms at 300 resources but ignores cross-group edges when placing nodes. The UI should show an indicator while a layout is running.
 
 ---
 
@@ -186,7 +187,7 @@ dslJsonSchema(): JSONSchema
 Layout runs in **ground-plane grid space** (2D, integer cells). Projection to isometric happens afterwards.
 
 1. Build a compound graph: groups are compound nodes, resources are leaves, and links are edges (between leaves, crossing group borders where needed).
-2. Run ELK `layered` with `hierarchyHandling: INCLUDE_CHILDREN`, using the `settings.layout` direction and spacing. Groups with no internal edges use `rectpacking` instead.
+2. Run ELK `layered` with `hierarchyHandling: INCLUDE_CHILDREN` (or `SEPARATE_CHILDREN` for large diagrams, §5.3), using the `settings.layout` direction and spacing, plus `considerModelOrder: NODES_AND_EDGES` so document order breaks ties. Groups with no internal edges use `rectpacking` instead. Pinned nodes are still passed to ELK so their edges shape the layout, but ELK's position for them is discarded.
 3. **Pinned nodes are hard constraints.**
    - Within each parent, pinned children are placed first and become obstacles.
    - Unpinned children take ELK's relative arrangement, which is then **snapped to integer cells** and nudged to the nearest free cell. A deterministic spiral search, in document order, resolves any collisions.
@@ -221,16 +222,16 @@ Raised links and stacked objects (`z`) are explicitly out of scope for v1 (§12)
 
 All of these are pure functions in `core/edit`. Each takes the current text plus the compile context and returns minimal `TextChange[]` built through the `yaml` CST, so comments, key order and the existing flow/block style are preserved.
 
-| Operation | Text effect |
-|---|---|
-| `move(id, at)` | Sets or updates `at:` (relative to the current parent). Pins the node. |
-| `reparent(id, newParent, at)` | Updates or removes `in:` and sets the relative `at:` |
-| `unpin(id)` | Removes `at:` |
-| `resizeGroup(id, size)` | Sets `size:` |
-| `add(resource, parent, at)` | Inserts a new entry into `resources:` with a unique generated id |
-| `delete(id)` | Removes the entry and lists links/notes that would dangle, so the UI can offer to remove them too |
-| `link(from, to)` | Appends `from -> to` to `links:` |
-| `pinAll()` | Writes every computed `at` |
+| Operation                     | Text effect                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `move(id, at)`                | Sets or updates `at:` (relative to the current parent). Pins the node.                            |
+| `reparent(id, newParent, at)` | Updates or removes `in:` and sets the relative `at:`                                              |
+| `unpin(id)`                   | Removes `at:`                                                                                     |
+| `resizeGroup(id, size)`       | Sets `size:`                                                                                      |
+| `add(resource, parent, at)`   | Inserts a new entry into `resources:` with a unique generated id                                  |
+| `delete(id)`                  | Removes the entry and lists links/notes that would dangle, so the UI can offer to remove them too |
+| `link(from, to)`              | Appends `from -> to` to `links:`                                                                  |
+| `pinAll()`                    | Writes every computed `at`                                                                        |
 
 **Interaction design:**
 
@@ -256,10 +257,10 @@ A pack is either:
 
 ### 8.2 Sources per platform
 
-| Platform | Sources |
-|---|---|
-| Web | bundled packs, packs loaded by URL, packs uploaded as zip or folder (stored in IndexedDB) |
-| CLI | bundled packs, local folders, URL packs (`--icon-pack name=path`) |
+| Platform | Sources                                                                                   |
+| -------- | ----------------------------------------------------------------------------------------- |
+| Web      | bundled packs, packs loaded by URL, packs uploaded as zip or folder (stored in IndexedDB) |
+| CLI      | bundled packs, local folders, URL packs (`--icon-pack name=path`)                         |
 
 ### 8.3 What ships bundled — licensing
 
@@ -271,7 +272,7 @@ Only packs whose licence clearly allows redistribution are bundled:
 
 Every pack's licence and attribution is shown on an in-app **Credits** page. Exported SVGs can include a `<metadata>` attribution block.
 
-**AWS, Azure and GCP architecture icons** are free to use *in diagrams*, but whether they may be *redistributed inside a tool* is unclear. Plan: provide a `isodiagram icons import <vendor> <downloaded-zip>` command that converts the user's own official download into a pack. Bundle them only after confirming each vendor's current terms (§11).
+**AWS, Azure and GCP architecture icons** are free to use _in diagrams_, but whether they may be _redistributed inside a tool_ is unclear. Plan: provide a `isodiagram icons import <vendor> <downloaded-zip>` command that converts the user's own official download into a pack. Bundle them only after confirming each vendor's current terms (§11).
 
 ### 8.4 Picker UI
 
@@ -310,14 +311,14 @@ PNG output goes through resvg with the bundled font. Distributed on npm (`npx @i
 
 ## 10. Testing strategy
 
-| Level | What | Tool |
-|---|---|---|
-| Unit | parse/source map, schema → range mapping, resolve semantics, depth sort (all rotations), A* router, snapping and collision resolution, every edit op | Vitest |
-| Golden | each `examples/*.yaml` → SVG snapshot, plus diagnostics snapshot for the `examples/invalid/*` fixtures | Vitest |
-| Determinism | the same fixture compiled twice, and in Node vs jsdom/browser, gives identical output | Vitest |
-| Visual | PNG of the golden fixtures, compared with pixelmatch within a tolerance | Vitest + resvg |
-| E2E | type → preview updates; drag → YAML changes; undo restores both; export downloads; share link round-trips | Playwright |
-| CLI | render, validate exit codes, freeze rewrite | Vitest (execa) |
+| Level       | What                                                                                                                                                 | Tool           |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| Unit        | parse/source map, schema → range mapping, resolve semantics, depth sort (all rotations), A* router, snapping and collision resolution, every edit op | Vitest         |
+| Golden      | each `examples/*.yaml` → SVG snapshot, plus diagnostics snapshot for the `examples/invalid/*` fixtures                                               | Vitest         |
+| Determinism | the same fixture compiled twice, and in Node vs jsdom/browser, gives identical output                                                                | Vitest         |
+| Visual      | PNG of the golden fixtures, compared with pixelmatch within a tolerance                                                                              | Vitest + resvg |
+| E2E         | type → preview updates; drag → YAML changes; undo restores both; export downloads; share link round-trips                                            | Playwright     |
+| CLI         | render, validate exit codes, freeze rewrite                                                                                                          | Vitest (execa) |
 
 CI (GitHub Actions) runs lint, typecheck, unit/golden and e2e on every PR.
 
@@ -327,36 +328,43 @@ CI (GitHub Actions) runs lint, typecheck, unit/golden and e2e on every PR.
 
 Each milestone ends with something usable. The three riskiest pieces are spiked first.
 
-**M0: Scaffold and spikes**
+**M0: Scaffold and spikes** ✅ done, findings in §14
+
 - Set up the pnpm monorepo, Biome, tsconfig, Vitest and CI.
 - Spike A: a comment-preserving `at:` edit with the `yaml` CST, written as a CodeMirror transaction.
 - Spike B: ELK compound layout snapped to the grid, with pinned nodes.
 - Spike C: depth sort of solids across all four rotations.
-- *Exit:* the spikes either confirm the approach or change this plan (record any changes here).
+- _Exit:_ the spikes either confirm the approach or change this plan (record any changes here).
 
 **M1: Static core and CLI**
+
 - parse → schema → resolve → manual-only placement (unpinned nodes are an error for now) → scene → SVG.
 - Shapes, grid, labels, straight/L-shaped links, `builtin:` and URL icons.
 - CLI `render`/`validate`/`schema`.
-- *Exit:* the examples render from the CLI and the golden tests pass.
+- _Exit:_ the examples render from the CLI and the golden tests pass.
 
 **M2: Web editor**
+
 - CodeMirror with schema autocomplete and exact diagnostics, worker pipeline, pan/zoom.
 - SVG/PNG export, autosave, open/save.
-- *Exit:* the old app's workflow is fully covered.
+- _Exit:_ the old app's workflow is fully covered.
 
 **M3: Drag-and-drop**
+
 - move/reparent/unpin/resize, snapped ghost and validity feedback, single undo stack, selection sync.
-- *Exit:* the Playwright drag/undo suite passes, and comments survive every edit op.
+- _Exit:_ the Playwright drag/undo suite passes, and comments survive every edit op.
 
 **M4: Auto layout and routing**
+
 - ELK placement with pinning, A* orthogonal routing, `via`, `freeze`/"Pin all".
-- *Exit:* a diagram with no `at:` at all looks good, and pinning one node doesn't disturb the others unexpectedly.
+- _Exit:_ a diagram with no `at:` at all looks good, and pinning one node doesn't disturb the others unexpectedly.
 
 **M5: Icons**
+
 - Pack format, bundled Font Awesome Free and Kubernetes, custom folder/URL/zip packs, picker, Credits page, `icons import`.
 
 **M6: Polish and publish**
+
 - Themes, example gallery, docs site (DSL reference generated from the schema), share links, PWA.
 - npm publish via Changesets, landing page, Tiny Tool Town submission.
 
@@ -376,7 +384,47 @@ Each milestone ends with something usable. The three riskiest pieces are spiked 
 ## 13. Open questions and risks
 
 - **Vendor icon licensing**: confirm AWS, Azure and GCP redistribution terms before bundling, and confirm Font Awesome's attribution expectations for CC BY icons.
-- **ELK and hard pins**: ELK's interactive modes treat positions as hints. The snap-and-nudge approach (§6.1) still needs to be validated in Spike B.
+- **Layout quality with pins**: snap-and-nudge works (§14), but ELK still lays out as if pinned nodes sat where ELK would have put them. Unpinned neighbours can end up looking unrelated to a pinned node. Revisit in M4 with real diagrams. One option: seed ELK with pinned positions via its interactive strategies.
+- **elkjs licence**: EPL-2.0 (or GPL-3.0). Fine as an unmodified dependency of an MIT project. Keep it unmodified and list it in the Credits page and third-party notices.
 - **elkjs size**: about 1 MB+, so it must be lazy-loaded. If that's unacceptable, a small custom layered layout is the fallback.
 - **Font consistency**: identical metrics and rendering across browsers and resvg depend on bundling and, where possible, embedding one font.
 - **Naming**: check that the npm scope `@isodiagrammer` and the domain are available before publishing.
+
+---
+
+## 14. M0 spike findings (2026-11-27)
+
+The spike code lives in `packages/spikes` and is promoted into `packages/core` during M1. All three spikes confirmed the approach.
+
+### Spike A: comment-preserving YAML edits ✅
+
+- `yaml` gives every node a `range` of `[start, valueEnd, nodeEnd]`. Editing only the bytes that change preserves comments, key order and flow/block style.
+- `setAt` / `removeAt` cover flow maps, block maps, nested block values, `{}` and bare `key:` entries, existing `at` in flow (`[4, 1]`) or block (`- 4` / `- 1`) style, trailing comments, and dangling comments.
+- Things to watch:
+  - Block collections' ranges end at the start of the *next* line, while scalars and flow collections end before their trailing comment.
+  - New keys in a block map are inserted at the map's `valueEnd`, which lands correctly before dangling comments.
+- The changes are a CodeMirror `ChangeSpec` as-is. A two-change edit applied as one transaction is undone by a single `undo`, which confirms the single-undo-stack design.
+
+### Spike B: ELK compound layout on the grid ✅ (with a performance caveat)
+
+- `layered` + `INCLUDE_CHILDREN` handles nested groups and edges that cross group borders. ELK coordinates divided by a cell unit and rounded give a clean grid placement.
+- Bottom-up resolution (pinned children first, then unpinned children by spiral search, then auto-size the group) satisfied every invariant in a 40-round fuzz test:
+  - no sibling overlaps
+  - pins honoured exactly
+  - children inside group bounds and padding
+  - deterministic output
+- Pinning a whole group leaves its children's relative positions unchanged, which confirms the relative-`at` design.
+- Performance: see §5.3. All the time is in ELK, not in snapping or nudging.
+- Visual quality is acceptable for a first pass. A default `groupPadding` of 1 looks cramped with nested groups and labels, so try 2 in M1.
+
+### Spike C: draw order ✅
+
+- The "A is behind B if `A.maxX ≤ B.minX` or `A.maxY ≤ B.minY`" rule, applied to pairs that overlap on screen and topologically sorted, matched a ray-cast ground truth at more than 10,000 random screen points per view rotation (60 random scenes × 4 rotations).
+- A naive centre-depth sort fails the same test, which confirms the test can catch real draw-order bugs.
+- View rotation is a footprint transform applied before sorting and projecting.
+
+### Tooling notes
+
+- TypeScript 7 (native `tsc`), Vitest 5 and Biome 2.6 work together without workarounds.
+- Node ≥ 25 no longer ships corepack. Install pnpm with `npm i -g pnpm` (or use `npx pnpm@10`).
+- Biome's `migrate` turned `recommended: true` into `preset: "none"`, which silently disabled linting. It's corrected to `preset: "recommended"`.

@@ -1,61 +1,29 @@
 # Isometric Diagrammer
 
-Client-only **Vite + Vue + TypeScript** app that turns a YAML DSL into Cloudcraft-like **isometric infrastructure diagrams** on a graph-paper grid. Includes a split editor/preview, zoom+pan, and export to **SVG** / **PNG**.
+Turn a YAML description of your infrastructure into a Cloudcraft-style **isometric diagram**, with automatic layout, drag-and-drop fine-tuning that writes back to your YAML, and SVG/PNG export. Comes as a web app and a CLI.
 
-## Commands
+> **Status:** early development (milestone M0 done). See [PLAN.md](PLAN.md) for the design and roadmap.
+
+## Development
+
+Requires Node ≥ 22 and [pnpm](https://pnpm.io) (`npm i -g pnpm`).
 
 ```bash
-npm install
-npm run dev
-npm run lint
-npm run test:run
-npm run build
+pnpm install
+pnpm test        # watch mode
+pnpm test:run    # single run (CI)
+pnpm lint        # Biome lint + format check
+pnpm format      # apply Biome fixes
+pnpm typecheck
 ```
 
-## DSL highlights
+## Repository layout
 
-### Canvas sizing (grid area)
+| Path | What |
+|---|---|
+| `packages/core` | Framework-free engine: parse → resolve → layout → scene → SVG |
+| `packages/spikes` | M0 throwaway spikes (YAML edits, ELK layout, depth sort) |
 
-By default, the SVG viewBox fits the rendered content. To force a specific canvas size (useful for exports / leaving extra space), set:
+## License
 
-```yaml
-settings:
-  canvas:
-    at: [-2, -2]
-    size: [18, 14]
-    padding: 2
-```
-
-### Shared icon definitions (define once, reuse)
-
-```yaml
-version: 1
-
-iconDefs:
-  cloudMark:
-    builtin: cloud
-    size: 0.7
-    opacity: 0.9
-  dbMark:
-    url: "/icons/db.svg"
-    size: 0.6
-
-resources:
-  web:
-    type: server
-    in: vpc
-    at: [1, 1]
-    icon:
-      ref: cloudMark
-      faces: [top, front]
-  db:
-    type: database
-    in: vpc
-    at: [8, 3]
-    icon: "@dbMark"   # shorthand for { ref: dbMark }
-```
-
-Notes:
-- Icon sources: `builtin:` (placeholder glyphs) or `url:` (SVG/PNG/data URI)
-- `faces:` can be `top|front|side|left|right|all` (or a list)
-- For PNG export, prefer same-origin URLs or data URIs to avoid canvas/CORS issues
+MIT

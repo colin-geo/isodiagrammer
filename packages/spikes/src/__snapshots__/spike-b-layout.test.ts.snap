@@ -1,0 +1,31 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ELK compound layout on the grid > plan example with db pinned inside private 1`] = `
+"
+    · cloud ··············
+    ·· vpc ···············
+    ··· publ·  · privat···
+ u  ···ll ww·  ·     DD···
+    ···ll ww·  ·     DD···
+    ·········  ·       ···
+    ··         ·cc     ···
+    ··         ·cc     ···
+    ··         ···········
+    ······················
+    ······················"
+`;
+
+exports[`ELK compound layout on the grid > plan example, nothing pinned 1`] = `
+"
+    · cloud ·········
+    ·· vpc ··········
+    ··· publ·  · p···
+ u  ···ll ww·  ·dd···
+    ···ll ww·  ·dd···
+    ·········  ·  ···
+    ··         ·cc···
+    ··         ·cc···
+    ··         ······
+    ·················
+    ·················"
+`;
