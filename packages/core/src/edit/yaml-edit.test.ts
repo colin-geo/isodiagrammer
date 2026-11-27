@@ -1,7 +1,7 @@
 import { history, undo } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, test } from "vitest";
-import { applyChanges, removeAt, setAt } from "./at.ts";
+import { applyChanges, removeAt, setAt } from "./yaml-edit.ts";
 
 const DOC = `version: 1
 # Top comment stays put

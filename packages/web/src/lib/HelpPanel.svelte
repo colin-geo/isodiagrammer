@@ -55,11 +55,21 @@ links:
   </section>
 
   <section>
-    <h3>Keyboard</h3>
+    <h3>Editing in the preview</h3>
+    <ul>
+      <li><strong>Drag</strong> a resource to move it. That writes <code>at:</code> (pinning it), and dropping it inside another group moves it there (<code>in:</code>). Hold <kbd>Alt</kbd> to keep its current group.</li>
+      <li>Groups drag by their label, or anywhere once selected. A selected group has a corner handle for resizing.</li>
+      <li><strong>Click</strong> to select (the editor jumps to it). <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> nudge by one cell. <strong>Unpin</strong> hands it back to auto-layout.</li>
+      <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes edits from either side. Comments in your YAML are kept.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Keyboard &amp; navigation</h3>
     <ul>
       <li><kbd>Ctrl</kbd>+<kbd>Space</kbd> autocomplete · hover a key for docs</li>
       <li><kbd>Ctrl</kbd>+<kbd>S</kbd> save · <kbd>Ctrl</kbd>+<kbd>O</kbd> open</li>
-      <li>Preview: drag or wheel to pan · <kbd>Ctrl</kbd>+wheel or <kbd>+</kbd>/<kbd>−</kbd> to zoom · <kbd>0</kbd> fit</li>
+      <li>Pan: drag the background, <kbd>Space</kbd>+drag, or wheel · Zoom: <kbd>Ctrl</kbd>+wheel or <kbd>+</kbd>/<kbd>−</kbd> · <kbd>0</kbd> fit · <kbd>Esc</kbd> deselect</li>
     </ul>
   </section>
 </aside>

@@ -351,7 +351,7 @@ Each milestone ends with something usable. The three riskiest pieces are spiked 
 - SVG/PNG export, autosave, open/save.
 - _Exit:_ the old app's workflow is fully covered.
 
-**M3: Drag-and-drop**
+**M3: Drag-and-drop** ✅ done, notes in §17
 
 - move/reparent/unpin/resize, snapped ghost and validity feedback, single undo stack, selection sync.
 - _Exit:_ the Playwright drag/undo suite passes, and comments survive every edit op.
@@ -495,3 +495,34 @@ The schema rejects these as unknown keys rather than silently ignoring them.
 **To revisit:**
 - The main bundle is about 345 KB gzipped (zod, yaml, CodeMirror and the schema plugin's markdown renderer). ELK (about 1.4 MB) is already split out and only loads in the worker. Options for M6: precompute the JSON Schema at build time so the main thread doesn't need zod, and lazy-load the hover renderer.
 - PNG export uses the browser's fonts, so it can differ from the CLI's resvg output. That's the font-consistency risk again (§13).
+
+---
+
+## 17. M3 notes (2026-11-27)
+
+**What shipped:**
+- **Drag:** a ghost footprint that snaps to cells and turns green or red, a badge saying what will happen ("Move into …" or "Can't drop here: …"), and the target group highlighted while dragging.
+- **Moving between groups:** dropping a node changes its group (moving it into a group, or out to the top level). <kbd>Alt</kbd> while dragging keeps the current group.
+- **Selection:** synced both ways. Clicking selects the node's key in the editor; moving the cursor in the editor highlights the node.
+- **Other edits:** Unpin, arrow-key nudging (a keyboard alternative to dragging), and a resize handle for groups.
+- **Undo:** <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> work from the preview through the editor's history. Every preview edit is a single text change, kept as its own undo step.
+
+**Core API:** `setKey`/`removeKey` (generalised from Spike A); `applyEdit(text, op)` with `move` (optionally changing the parent), `unpin` and `resize`, each returning one minimal change; `layoutInfo()`, the serialisable placement summary with source ranges; and `screenToWorld`, `worldToScreen`, `worldVecToScreen` and `footprintPolygon`.
+
+**Decisions:**
+- **Only pinned siblings block a drop.** Auto-placed siblings are re-laid-out around the newly pinned node, which is what pinning is for.
+- **Groups drag by their label, or anywhere once selected.** Otherwise a large region group would cover the canvas and dragging could never pan.
+- **Drop target** is the innermost group containing the dragged node's centre. A group can never be dropped into itself or its descendants.
+- **Resizing** pulls the group's far world corner (x+w, y+d), so `at` never has to change, whichever way the view is rotated.
+- **Arrow keys** move in the view frame (→ is +x towards the lower right, ↓ is +y towards the lower left), converted back to world coordinates.
+
+**Bugs found by the browser tests:**
+- The drag origin was taken when the pointer crossed the 4 px threshold, which lost the first part of every drag. It's now taken at `pointerdown`.
+- Fast consecutive nudges or drags read the layout before the previous edit had re-rendered. Edits are now also applied optimistically to the in-memory layout (`applyOpToLayout`), and the next render replaces it.
+
+**Still open:**
+- **Moved to M4:** `pinAll`/freeze.
+- **Moved to M6 (polish):** a resource palette (drag in new resources), drawing links by dragging between nodes, and delete with a dangling-reference check. None is needed for the core "fine-tune the auto-layout" workflow.
+- **Links during a drag:** they don't follow the node (they re-route on drop), and the dragged node isn't re-sorted for depth mid-drag. Both are cosmetic.
+
+**Test counts:** 119 unit tests and 19 Playwright tests. The drag suite covers move, moving between groups, an invalid drop, Alt-drag, selection both ways, nudge, unpin, resize, panning, undo/redo, and comment preservation.

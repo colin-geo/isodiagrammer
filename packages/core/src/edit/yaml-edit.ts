@@ -62,60 +62,70 @@ function nextLineStart(text: string, pos: number): number {
 }
 
 const fmtVec = ([x, y]: Vec2) => `[${x}, ${y}]`;
+const fmt = (v: Vec2 | string) => (typeof v === "string" ? v : fmtVec(v));
 
-/** Set (or add) `at:` on a group/resource. Preserves comments, key order and style. */
-export function setAt(text: string, id: string, at: Vec2): TextChange[] {
+/**
+ * Set (or add) `key: value` on a group/resource entry. Preserves comments, key order and
+ * style. String values are written verbatim (callers pass ids or other plain scalars).
+ */
+export function setKey(text: string, id: string, key: string, value: Vec2 | string): TextChange[] {
   const entry = findEntry(text, id);
-  const value = entry.value;
+  const node = entry.value;
+  const pairText = `${key}: ${fmt(value)}`;
 
   // `web:` with no value, or `web: ~`
-  if (value === null || (isScalar(value) && value.value === null)) {
+  if (node === null || (isScalar(node) && node.value === null)) {
     const colon = text.indexOf(":", rangeOf(entry.key)[1]);
-    const to = value ? Math.max(colon + 1, rangeOf(value)[1]) : colon + 1;
-    return [{ from: colon + 1, to, insert: ` { at: ${fmtVec(at)} }` }];
+    const to = node ? Math.max(colon + 1, rangeOf(node)[1]) : colon + 1;
+    return [{ from: colon + 1, to, insert: ` { ${pairText} }` }];
   }
-  if (!isMap(value)) throw new Error(`"${id}" is not a mapping`);
+  if (!isMap(node)) throw new Error(`"${id}" is not a mapping`);
 
-  const existing = findKey(value, "at");
+  const existing = findKey(node, key);
   if (existing?.value) {
     const v = existing.value;
     // Edit the two numbers in place: keeps flow `[4, 1]` *and* block `- 4\n- 1` styles.
-    if (isSeq(v) && v.items.length === 2 && v.items.every((i) => isScalar(i))) {
+    if (
+      typeof value !== "string" &&
+      isSeq(v) &&
+      v.items.length === 2 &&
+      v.items.every((i) => isScalar(i))
+    ) {
       return v.items.map((item, i) => {
         const [from, to] = rangeOf(item as Node);
-        return { from, to, insert: String(at[i]) };
+        return { from, to, insert: String(value[i]) };
       });
     }
     const [from, to] = rangeOf(v);
-    return [{ from, to, insert: fmtVec(at) }];
+    return [{ from, to, insert: fmt(value) }];
   }
 
-  const [mapStart, mapValueEnd] = rangeOf(value);
-  if (value.flow) {
-    const last = value.items.at(-1);
+  const [mapStart, mapValueEnd] = rangeOf(node);
+  if (node.flow) {
+    const last = node.items.at(-1);
     if (!last) {
-      // `{}` → `{ at: [x, y] }`
-      return [{ from: mapStart + 1, to: mapValueEnd - 1, insert: ` at: ${fmtVec(at)} ` }];
+      // `{}` → `{ key: value }`
+      return [{ from: mapStart + 1, to: mapValueEnd - 1, insert: ` ${pairText} ` }];
     }
     const lastEnd = last.value ? rangeOf(last.value as Node)[1] : rangeOf(last.key as Node)[1];
-    return [{ from: lastEnd, to: lastEnd, insert: `, at: ${fmtVec(at)}` }];
+    return [{ from: lastEnd, to: lastEnd, insert: `, ${pairText}` }];
   }
 
   // Block map: new line after the map's last entry, at the indentation of its first key.
-  const firstKey = value.items[0]?.key as Node;
+  const firstKey = node.items[0]?.key as Node;
   const indent = " ".repeat(rangeOf(firstKey)[0] - lineStart(text, rangeOf(firstKey)[0]));
-  const line = `${indent}at: ${fmtVec(at)}`;
+  const line = `${indent}${pairText}`;
   const insertAt = mapValueEnd;
   if (text[insertAt - 1] === "\n") return [{ from: insertAt, to: insertAt, insert: `${line}\n` }];
   return [{ from: insertAt, to: insertAt, insert: `\n${line}` }];
 }
 
-/** Remove `at:` (unpin). No-op if absent. */
-export function removeAt(text: string, id: string): TextChange[] {
+/** Remove `key:` from a group/resource entry. No-op if absent. */
+export function removeKey(text: string, id: string, key: string): TextChange[] {
   const entry = findEntry(text, id);
   const value = entry.value;
   if (!isMap(value)) return [];
-  const idx = value.items.findIndex((p) => isScalar(p.key) && p.key.value === "at");
+  const idx = value.items.findIndex((p) => isScalar(p.key) && p.key.value === key);
   if (idx === -1) return [];
   const pair = value.items[idx] as Pair<Node, Node | null>;
   const keyStart = rangeOf(pair.key)[0];
@@ -131,13 +141,18 @@ export function removeAt(text: string, id: string): TextChange[] {
     return [{ from: keyStart, to: next ? rangeOf(next.key)[0] : valEnd, insert: "" }];
   }
 
-  // Block: delete whole line(s) including any trailing comment on the `at:` line.
+  // Block: delete whole line(s) including any trailing comment on that line.
   const nodeEnd = pair.value ? rangeOf(pair.value)[2] : valEnd;
   // Block collections' ranges already end at the start of the following line.
   const lineEnd = text[valEnd - 1] === "\n" ? valEnd : nextLineStart(text, valEnd);
   const end = Math.max(nodeEnd, lineEnd);
   return [{ from: lineStart(text, keyStart), to: end, insert: "" }];
 }
+
+/** Set (or add) `at:`, i.e. pin a node. */
+export const setAt = (text: string, id: string, at: Vec2) => setKey(text, id, "at", at);
+/** Remove `at:`, i.e. unpin a node. */
+export const removeAt = (text: string, id: string) => removeKey(text, id, "at");
 
 /** Apply changes (non-overlapping, any order) to a string — used by tests and the CLI. */
 export function applyChanges(text: string, changes: readonly TextChange[]): string {

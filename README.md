@@ -1,8 +1,8 @@
 # Isometric Diagrammer
 
-Turn a YAML description of your infrastructure into a Cloudcraft-style **isometric diagram**, with automatic layout, fine-tuning with `at:` coordinates, and SVG/PNG export. Comes as a web editor (live preview, autocomplete, export) and a CLI for docs and CI pipelines. Drag-and-drop editing arrives next.
+Turn a YAML description of your infrastructure into a Cloudcraft-style **isometric diagram**, with automatic layout, fine-tuning with `at:` coordinates, and SVG/PNG export. Comes as a web editor (live preview, drag-and-drop that writes back to your YAML, autocomplete, export) and a CLI for docs and CI pipelines.
 
-> **Status:** early development: milestones M0–M2 done (engine, CLI, web editor). See [PLAN.md](PLAN.md) for the design and roadmap.
+> **Status:** early development: milestones M0–M3 done (engine, CLI, web editor with drag-and-drop). See [PLAN.md](PLAN.md) for the design and roadmap.
 
 ```yaml
 version: 1
@@ -34,7 +34,7 @@ pnpm install
 pnpm dev          # http://localhost:5173
 ```
 
-YAML on the left, live preview on the right. Schema autocomplete (<kbd>Ctrl</kbd>+<kbd>Space</kbd>) and hover docs work in the editor; problems are underlined and listed below it. Drag or scroll to pan the preview, and use <kbd>Ctrl</kbd>+wheel to zoom. Your work autosaves in the browser; **Open**/**Save** read and write `.yaml` files, and **Export** produces SVG or PNG.
+YAML on the left, live preview on the right. **Drag** things in the preview to fine-tune the automatic layout: the editor updates with an `at:` (and `in:` when you drop into another group), keeping your comments. Click to select (synced with the editor), use the arrow keys to nudge, **Unpin** to hand a node back to auto-layout, and <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo from either side. Schema autocomplete (<kbd>Ctrl</kbd>+<kbd>Space</kbd>) and hover docs work in the editor; problems are underlined and listed below it. Drag or scroll to pan the preview, and use <kbd>Ctrl</kbd>+wheel to zoom. Your work autosaves in the browser; **Open**/**Save** read and write `.yaml` files, and **Export** produces SVG or PNG.
 
 ## CLI
 

@@ -1,8 +1,9 @@
 <script lang="ts">
-import type { Diagnostic } from "@isodiagrammer/core";
+import type { Diagnostic, EditOp, LayoutInfo } from "@isodiagrammer/core";
 import { onDestroy, onMount } from "svelte";
 import { type CompileResponse, Compiler, createCompileWorker } from "./lib/compiler.ts";
 import DiagnosticsPanel from "./lib/DiagnosticsPanel.svelte";
+import { applyOpToLayout, nodeAtSource } from "./lib/drag.ts";
 import Editor from "./lib/Editor.svelte";
 import { EXAMPLES, STARTER } from "./lib/examples.ts";
 import { baseName, cleanSvg, download, svgToPng } from "./lib/export.ts";
@@ -22,6 +23,9 @@ let handle: FileHandle | undefined;
 
 let result = $state<CompileResponse | undefined>();
 let lastGoodSvg = $state<string | undefined>();
+let lastGoodLayout = $state<LayoutInfo | undefined>();
+let renderKey = $state(0);
+let selected = $state<string | undefined>();
 let fitRequest = $state(0);
 let busy = $state(false);
 let message = $state<string | undefined>();
@@ -45,7 +49,11 @@ $effect(() => {
 const worker = createCompileWorker();
 const compiler = new Compiler(worker, (r) => {
   result = r;
-  if (r.svg) lastGoodSvg = r.svg;
+  renderKey++;
+  if (r.svg) {
+    lastGoodSvg = r.svg;
+    lastGoodLayout = r.layout;
+  }
   editor?.showDiagnostics(r.text, r.diagnostics);
 });
 onDestroy(() => worker.terminate());
@@ -56,10 +64,34 @@ function persist() {
   autosaveTimer = setTimeout(() => autosave({ name, text, savedText }), 400);
 }
 
-function onchange(t: string) {
+function onchange(t: string, immediate: boolean) {
   text = t;
-  compiler.update(t);
+  compiler.update(t, immediate);
   persist();
+}
+
+// ---- preview ↔ editor ----------------------------------------------------------------
+/** Cursor moved in the editor: highlight the node whose entry it's in. */
+function onEditorSelection(pos: number) {
+  if (lastGoodLayout && result?.text === text) selected = nodeAtSource(lastGoodLayout, pos);
+}
+
+/** Clicked in the preview: select the node's key in the editor (without stealing focus). */
+function onPreviewSelect(id: string | undefined) {
+  selected = id;
+  const key = id ? lastGoodLayout?.nodes.find((n) => n.id === id)?.key : undefined;
+  if (key) editor.select(key.from, key.to);
+}
+
+function onPreviewEdit(op: EditOp) {
+  message = undefined;
+  try {
+    editor.applyOp(op);
+    // Optimistic: the next drag/nudge starts from here, even before the re-render arrives.
+    if (lastGoodLayout) lastGoodLayout = applyOpToLayout(lastGoodLayout, op);
+  } catch (e) {
+    message = `Couldn't apply that change: ${(e as Error).message}`;
+  }
 }
 
 function loadDocument(newName: string, newText: string, newHandle?: FileHandle) {
@@ -67,6 +99,7 @@ function loadDocument(newName: string, newText: string, newHandle?: FileHandle) 
   text = newText;
   savedText = newText;
   handle = newHandle;
+  selected = undefined;
   editor.load(newText);
   compiler.update(newText, true);
   fitRequest++;
@@ -212,7 +245,7 @@ function toggleHelp() {
   <main bind:this={main} style:grid-template-columns="{ui.split * 100}% 6px 1fr">
     <section class="left" aria-label="Editor">
       <div class="editor-wrap">
-        <Editor bind:this={editor} initial={initialText} {onchange} />
+        <Editor bind:this={editor} initial={initialText} {onchange} onselection={onEditorSelection} />
       </div>
       <DiagnosticsPanel {diagnostics} text={result?.text ?? text} onselect={(f, t) => editor.reveal(f, t)} />
     </section>
@@ -231,7 +264,18 @@ function toggleHelp() {
       onkeydown={resizeKey}
     ></div>
     <section class="right" aria-label="Preview">
-      <Preview svg={lastGoodSvg} {stale} {fitRequest} />
+      <Preview
+        svg={lastGoodSvg}
+        {stale}
+        {fitRequest}
+        {renderKey}
+        layout={lastGoodLayout}
+        {selected}
+        onselect={onPreviewSelect}
+        onedit={onPreviewEdit}
+        onundo={() => editor.undo()}
+        onredo={() => editor.redo()}
+      />
       {#if ui.helpOpen}
         <div class="help-wrap"><HelpPanel onclose={toggleHelp} /></div>
       {/if}

@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 /** Runs the whole pipeline off the UI thread (PLAN.md §5.3). */
-import { compile } from "@isodiagrammer/core";
+import { compile, layoutInfo } from "@isodiagrammer/core";
 import { browserIconProvider } from "./browser-icons.ts";
 import type { CompileRequest, CompileResponse } from "./compiler.ts";
 
@@ -20,7 +20,14 @@ self.addEventListener("message", async (e: MessageEvent<CompileRequest>) => {
   let response: CompileResponse;
   try {
     const r = await compile(text, { icons });
-    response = { id, text, svg: r.svg, diagnostics: r.diagnostics, ms: performance.now() - t0 };
+    response = {
+      id,
+      text,
+      svg: r.svg,
+      diagnostics: r.diagnostics,
+      layout: layoutInfo(r),
+      ms: performance.now() - t0,
+    };
   } catch (err) {
     response = {
       id,

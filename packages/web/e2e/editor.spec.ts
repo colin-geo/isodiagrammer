@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 const editor = (page: Page) => page.locator(".cm-content");
-const preview = (page: Page) => page.locator(".preview .content svg");
+const preview = (page: Page) => page.locator(".preview .content > svg:not(.overlay)");
 
 /** Replace the editor's whole document by typing (exercises the real input path). */
 async function setDoc(page: Page, text: string) {

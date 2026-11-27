@@ -78,3 +78,35 @@ export function faceMatrix(
   const [c, d] = projectVec(...v);
   return [a, b, c, d, e, f];
 }
+
+const INVERSE: Record<Rotation, Rotation> = { 0: 0, 90: 270, 180: 180, 270: 90 };
+
+/** Screen (SVG user units) → world grid point on the ground plane (z = 0), unsnapped. */
+export function screenToWorld(sx: number, sy: number, rotation: Rotation): Vec2 {
+  const a = sx / (COS30 * S); // x − y
+  const b = sy / (SIN30 * S); // x + y
+  return rotatePoint([(a + b) / 2, (b - a) / 2], INVERSE[rotation]);
+}
+
+/** World grid vector → screen vector (for translating dragged elements). */
+export function worldVecToScreen(v: Vec2, rotation: Rotation): Pt {
+  const [x, y] = rotatePoint(v, rotation);
+  return projectVec(x, y);
+}
+
+/** Screen polygon of a world footprint on the ground (or at height z). */
+export function footprintPolygon(abs: Vec2, size: Vec2, rotation: Rotation, z = 0): Pt[] {
+  const r = rotateRect({ x: abs[0], y: abs[1], w: size[0], d: size[1] }, rotation);
+  return [
+    project(r.x, r.y, z),
+    project(r.x + r.w, r.y, z),
+    project(r.x + r.w, r.y + r.d, z),
+    project(r.x, r.y + r.d, z),
+  ];
+}
+
+/** Screen point of a world grid point. */
+export function worldToScreen(p: Vec2, rotation: Rotation, z = 0): Pt {
+  const [x, y] = rotatePoint(p, rotation);
+  return project(x, y, z);
+}

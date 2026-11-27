@@ -2,7 +2,7 @@
  * Client for the compile worker. Requests are debounced, and only the newest result is
  * delivered: a slow compile for old text never overwrites a newer one.
  */
-import type { Diagnostic } from "@isodiagrammer/core";
+import type { Diagnostic, LayoutInfo } from "@isodiagrammer/core";
 
 export interface CompileRequest {
   id: number;
@@ -15,6 +15,8 @@ export interface CompileResponse {
   text: string;
   svg: string | undefined;
   diagnostics: Diagnostic[];
+  /** where everything was placed (for drag-and-drop); absent when nothing rendered */
+  layout?: LayoutInfo | undefined;
   ms: number;
 }
 

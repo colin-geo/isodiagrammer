@@ -9,7 +9,15 @@ import {
   closeBracketsKeymap,
   completionKeymap,
 } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import {
+  redo as cmRedo,
+  undo as cmUndo,
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+  isolateHistory,
+} from "@codemirror/commands";
 import { yaml, yamlLanguage } from "@codemirror/lang-yaml";
 import {
   bracketMatching,
@@ -29,7 +37,7 @@ import {
   keymap,
   lineNumbers,
 } from "@codemirror/view";
-import { type Diagnostic, dslJsonSchema } from "@isodiagrammer/core";
+import { applyEdit, type Diagnostic, dslJsonSchema, type EditOp } from "@isodiagrammer/core";
 import { tags as t } from "@lezer/highlight";
 import { stateExtensions } from "codemirror-json-schema";
 import { yamlCompletion, yamlSchemaHover } from "codemirror-json-schema/yaml";
@@ -37,9 +45,12 @@ import { onDestroy, onMount } from "svelte";
 
 interface Props {
   initial: string;
-  onchange: (text: string) => void;
+  /** `immediate`: the change came from the preview (drag, nudge…) and should render now */
+  onchange: (text: string, immediate: boolean) => void;
+  /** cursor moved (head position) */
+  onselection?: (pos: number) => void;
 }
-const { initial, onchange }: Props = $props();
+const { initial, onchange, onselection }: Props = $props();
 
 let host: HTMLDivElement;
 let view: EditorView | undefined;
@@ -114,7 +125,11 @@ function createState(doc: string): EditorState {
         indentWithTab,
       ]),
       EditorView.updateListener.of((u) => {
-        if (u.docChanged) onchange(u.state.doc.toString());
+        if (u.docChanged) {
+          const fromPreview = u.transactions.some((tr) => tr.isUserEvent("move.preview"));
+          onchange(u.state.doc.toString(), fromPreview);
+        }
+        if (u.selectionSet && !u.docChanged) onselection?.(u.state.selection.main.head);
       }),
       EditorView.contentAttributes.of({ "aria-label": "Diagram YAML" }),
     ],
@@ -154,6 +169,35 @@ export function showDiagnostics(text: string, diagnostics: readonly Diagnostic[]
     ];
   });
   view.dispatch(setDiagnostics(view.state, cm));
+}
+
+/**
+ * Apply a preview edit (drag, nudge, unpin…) as one transaction, so it's one undo step
+ * shared with ordinary typing. Throws if the id is gone or the YAML can't be parsed.
+ */
+export function applyOp(op: EditOp) {
+  if (!view) return;
+  const changes = applyEdit(view.state.doc.toString(), op);
+  if (changes.length === 0) return;
+  view.dispatch({ changes, userEvent: "move.preview", annotations: isolateHistory.of("full") });
+}
+
+export function undo() {
+  if (view) cmUndo(view);
+}
+
+export function redo() {
+  if (view) cmRedo(view);
+}
+
+/** Select a range without stealing focus from the preview. */
+export function select(from: number, to: number) {
+  if (!view) return;
+  const len = view.state.doc.length;
+  view.dispatch({
+    selection: { anchor: Math.min(from, len), head: Math.min(to, len) },
+    effects: EditorView.scrollIntoView(Math.min(from, len), { y: "center" }),
+  });
 }
 
 export function reveal(from: number, to: number) {

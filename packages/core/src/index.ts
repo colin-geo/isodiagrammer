@@ -11,7 +11,16 @@ export {
   type Severity,
 } from "./diagnostics.ts";
 export { type DiagramDsl, dslJsonSchema } from "./dsl/schema.ts";
-export { applyChanges, removeAt, setAt, type TextChange } from "./edit/at.ts";
+export { applyEdit, diffChange, type EditOp } from "./edit/ops.ts";
+export {
+  applyChanges,
+  removeAt,
+  removeKey,
+  setAt,
+  setKey,
+  type TextChange,
+} from "./edit/yaml-edit.ts";
+export { type LayoutInfo, layoutInfo, type NodeInfo } from "./layout/info.ts";
 export { parseDiagram, type SourceMap } from "./parse/parse.ts";
 export { renderSvg } from "./render/svg.ts";
 export { CATALOG } from "./resolve/catalog.ts";
@@ -23,5 +32,13 @@ export {
   mimeForPath,
   noIcons,
 } from "./resolve/icons.ts";
+export type { Rotation, Vec2 } from "./resolve/resolve.ts";
+export {
+  footprintPolygon,
+  type Pt,
+  screenToWorld,
+  worldToScreen,
+  worldVecToScreen,
+} from "./scene/iso.ts";
 
 export const VERSION = "0.1.0";
