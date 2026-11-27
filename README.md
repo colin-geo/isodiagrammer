@@ -1,61 +1,88 @@
 # Isometric Diagrammer
 
-Client-only **Vite + Vue + TypeScript** app that turns a YAML DSL into Cloudcraft-like **isometric infrastructure diagrams** on a graph-paper grid. Includes a split editor/preview, zoom+pan, and export to **SVG** / **PNG**.
+Turn a YAML description of your infrastructure into a Cloudcraft-style **isometric diagram**, with automatic layout, fine-tuning with `at:` coordinates, and SVG/PNG export. Comes as a web editor (live preview, drag-and-drop that writes back to your YAML, autocomplete, export) and a CLI for docs and CI pipelines.
 
-## Commands
-
-```bash
-npm install
-npm run dev
-npm run lint
-npm run test:run
-npm run build
-```
-
-## DSL highlights
-
-### Canvas sizing (grid area)
-
-By default, the SVG viewBox fits the rendered content. To force a specific canvas size (useful for exports / leaving extra space), set:
-
-```yaml
-settings:
-  canvas:
-    at: [-2, -2]
-    size: [18, 14]
-    padding: 2
-```
-
-### Shared icon definitions (define once, reuse)
+> **Status:** early development: milestones M0–M4 done (engine, CLI, web editor with drag-and-drop, obstacle-avoiding link routing). See [PLAN.md](PLAN.md) for the design and roadmap.
 
 ```yaml
 version: 1
+title: Checkout platform
 
-iconDefs:
-  cloudMark:
-    builtin: cloud
-    size: 0.7
-    opacity: 0.9
-  dbMark:
-    url: "/icons/db.svg"
-    size: 0.6
+groups:
+  vpc:     { label: VPC, style: zone }
+  public:  { in: vpc, label: Public subnet }
+  private: { in: vpc, label: Private subnet }
 
 resources:
-  web:
-    type: server
-    in: vpc
-    at: [1, 1]
-    icon:
-      ref: cloudMark
-      faces: [top, front]
-  db:
-    type: database
-    in: vpc
-    at: [8, 3]
-    icon: "@dbMark"   # shorthand for { ref: dbMark }
+  users: { type: user, label: Customers }
+  lb:    { type: loadbalancer, in: public }
+  web:   { type: server, in: public }
+  db:    { type: database, in: private, at: [4, 2] }   # pinned; the rest is auto-laid-out
+
+links:
+  - users -> lb
+  - lb -> web
+  - { from: web, to: db, label: SQL, style: dashed }
+  - { from: web, to: users, toSide: right, via: [[2, 9]] }   # steer a route by hand
 ```
 
-Notes:
-- Icon sources: `builtin:` (placeholder glyphs) or `url:` (SVG/PNG/data URI)
-- `faces:` can be `top|front|side|left|right|all` (or a list)
-- For PNG export, prefer same-origin URLs or data URIs to avoid canvas/CORS issues
+Links route around boxes automatically and keep their arrowheads on sides you can see. Steer them with `via:` waypoints and `fromSide`/`toSide` (`left`, `right`, `back-left`, `back-right`, as seen on screen). Set the overall flow with `settings: { layout: { direction: down } }`.
+
+More in [`examples/`](examples/).
+
+## Web editor
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:5173
+```
+
+YAML on the left, live preview on the right. **Drag** things in the preview to fine-tune the automatic layout: the editor updates with an `at:` (and `in:` when you drop into another group), keeping your comments. Click to select (synced with the editor), use the arrow keys to nudge, **Unpin** to hand a node back to auto-layout, **Pin all** to freeze the whole layout into `at:` values, and <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo from either side. Schema autocomplete (<kbd>Ctrl</kbd>+<kbd>Space</kbd>) and hover docs work in the editor; problems are underlined and listed below it. Drag or scroll to pan the preview, and use <kbd>Ctrl</kbd>+wheel to zoom. Your work autosaves in the browser; **Open**/**Save** read and write `.yaml` files, and **Export** produces SVG or PNG.
+
+## CLI
+
+```bash
+isodiagram render arch.yaml -o arch.svg
+isodiagram render arch.yaml -o arch.png --scale 2 --theme dark
+isodiagram render arch.yaml -o arch.svg --watch
+isodiagram validate arch.yaml                # exit 1 on errors; --format json for CI
+isodiagram freeze arch.yaml                  # write every computed position as at: (--stdout to preview)
+isodiagram schema > isodiagram.schema.json   # editor autocomplete
+```
+
+Until the package is published, run it from a checkout with `node packages/cli/src/main.ts …` (Node ≥ 23.6 runs the TypeScript directly).
+
+**Editor autocomplete:** with the VS Code YAML extension, add to `settings.json`:
+
+```json
+"yaml.schemas": { "./isodiagram.schema.json": "*.iso.yaml" }
+```
+
+Problems are reported with stable codes. See [docs/diagnostics.md](docs/diagnostics.md).
+
+## Development
+
+Requires Node ≥ 23.6 and [pnpm](https://pnpm.io) (`npm i -g pnpm`).
+
+```bash
+pnpm install
+pnpm test        # watch mode
+pnpm test:run    # single run (CI); add -u to accept intentional golden changes
+pnpm lint        # Biome lint + format check
+pnpm format      # apply Biome fixes
+pnpm typecheck
+pnpm dev         # web editor dev server
+pnpm e2e         # Playwright end-to-end tests (CHROMIUM_PATH=/usr/bin/chromium to use a system browser)
+```
+
+| Path | What |
+|---|---|
+| `packages/core` | Framework-free engine: parse → resolve → layout → scene → SVG, plus YAML edit operations |
+| `packages/core/src/__golden__` | Committed SVG/diagnostic snapshots of every example: review changes in diffs |
+| `packages/cli` | The `isodiagram` command |
+| `packages/web` | The web editor (Svelte 5 + Vite) |
+| `examples/` | Example diagrams (also the golden-test fixtures) |
+
+## License
+
+MIT

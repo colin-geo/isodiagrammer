@@ -1,0 +1,46 @@
+# Every built-in type, shape, icon face and link style.
+version: 1
+title: Showcase
+
+settings:
+  grid: { style: technical }
+
+types:
+  worker:
+    shape: box
+    size: [1, 2]
+    height: 2
+    color: "#6366f1"
+    icon: { src: builtin:function, faces: all, size: 0.7 }
+
+groups:
+  compute: { label: Compute, color: "#3b82f6" }
+  data: { label: Data, style: zone, color: "#10b981" }
+
+resources:
+  internet: { type: internet, label: Internet }
+  fw: { type: firewall, label: WAF }
+  lb: { type: loadbalancer, in: compute }
+  api: { type: server, in: compute, icon: { src: builtin:server, faces: [top, left, right] } }
+  fn: { type: function, in: compute }
+  ctr: { type: container, in: compute }
+  jobs: { type: worker, in: compute }
+  q: { type: queue, in: data }
+  pg: { type: database, in: data }
+  redis: { type: cache, in: data }
+  s3: { type: storage, in: data }
+  pad: { type: area, label: Staging area, size: [3, 3] }
+  ops: { type: user, label: Ops }
+  mystery: { type: thing, label: Unknown type }
+
+links:
+  - internet -> fw
+  - fw -> lb
+  - lb -> api
+  - api <-> fn
+  - { from: api, to: q, label: enqueue }
+  - { from: q, to: jobs, style: dotted }
+  - { from: api, to: pg, style: dashed, color: "#10b981" }
+  - api -- redis
+  - { from: jobs, to: s3, route: straight }
+  - ops -> pad

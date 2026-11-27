@@ -1,0 +1,4 @@
+3:18 error E_SCHEMA settings.grid.style: Invalid option: expected one of "none"|"simple"|"technical"
+5:32 error E_SCHEMA resources.web.at.1: Invalid input: expected number, received string
+5:40 error E_UNKNOWN_KEY Unknown key "colour" in resources.web
+7:5 error E_SCHEMA links.0: link shorthand is "a -> b", "a <-> b" or "a -- b"

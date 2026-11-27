@@ -1,0 +1,14 @@
+version: 1
+groups:
+  vpc: { size: [3, 3] }
+  loop-a: { in: loop-b }
+  loop-b: { in: loop-a }
+resources:
+  vpc: { type: server }
+  a: { in: vpc, at: [0, 0] }
+  b: { in: vpc, at: [1, 1] }
+  c: { in: nowhere, icon: "@missing" }
+links:
+  - a -> ghost
+  - a -> b
+  - a -> b

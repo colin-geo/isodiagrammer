@@ -1,0 +1,22 @@
+{
+  "name": "@isodiagrammer/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "elkjs": "^0.12.2",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@codemirror/commands": "^6.11.2",
+    "@codemirror/state": "^6.7.6",
+    "@types/node": "^26.6.11"
+  }
+}

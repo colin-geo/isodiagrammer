@@ -1,0 +1,27 @@
+# Every node pinned with `at` — no automatic layout involved.
+version: 1
+title: Pinned layout
+
+settings:
+  grid: { style: simple }
+  canvas: { padding: 1 }
+
+groups:
+  dc:
+    label: Data centre
+    at: [0, 0]
+    size: [14, 9]
+
+resources:
+  edge: { type: firewall, in: dc, at: [1, 3] }
+  app1: { type: server, in: dc, at: [5, 1] }
+  app2: { type: server, in: dc, at: [5, 5] }
+  store: { type: storage, in: dc, at: [10, 3], label: Object store }
+  laptop: { type: user, at: [-3, 4], label: Admin }
+
+links:
+  - laptop -> edge
+  - edge -> app1
+  - edge -> app2
+  - { from: app1, to: store, route: straight }
+  - { from: app2, to: store, route: straight }

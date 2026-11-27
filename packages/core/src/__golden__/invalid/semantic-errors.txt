@@ -1,0 +1,7 @@
+4:17 error E_GROUP_CYCLE Group "loop-a" is inside itself via "in:"
+7:3 error E_DUPLICATE_ID "vpc" is used as both a group and a resource id
+9:21 error E_FOOTPRINT_OVERLAP "b" overlaps "a"
+10:12 error E_UNKNOWN_GROUP Unknown group "nowhere"
+10:27 error E_UNKNOWN_ICON_ALIAS Unknown icon alias "@missing"
+12:5 error E_UNKNOWN_LINK_ENDPOINT Link to "ghost" is not a group or resource
+14:5 error E_DUPLICATE_LINK_ID Duplicate link id "a->b"

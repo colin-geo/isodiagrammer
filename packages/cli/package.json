@@ -1,0 +1,20 @@
+{
+  "name": "@isodiagrammer/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Render Isometric Diagrammer YAML to SVG/PNG from the command line",
+  "bin": {
+    "isodiagram": "./src/main.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@isodiagrammer/core": "workspace:*",
+    "@resvg/resvg-js": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.11"
+  }
+}

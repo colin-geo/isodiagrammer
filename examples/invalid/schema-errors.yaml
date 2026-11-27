@@ -1,0 +1,7 @@
+version: 1
+settings:
+  grid: { style: fancy }
+resources:
+  web: { type: server, at: [1, "two"], colour: red }
+links:
+  - web => db

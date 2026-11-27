@@ -1,0 +1,25 @@
+{
+  "name": "isodiagrammer",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "dev": "pnpm --filter @isodiagrammer/web dev",
+    "build": "pnpm --filter @isodiagrammer/web build",
+    "e2e": "pnpm --filter @isodiagrammer/web e2e"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.9",
+    "@types/node": "^26.6.11",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.2"
+  }
+}

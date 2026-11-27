@@ -1,0 +1,29 @@
+# The example from PLAN.md §4.1 — fully auto-laid-out except one pinned node.
+version: 1
+title: Checkout platform
+
+settings:
+  grid: { style: technical }
+
+icons:
+  aliases:
+    db: builtin:database
+
+groups:
+  cloud: { label: AWS eu-west-1, style: region }
+  vpc: { in: cloud, label: VPC, style: zone }
+  public: { in: vpc, label: Public subnet }
+  private: { in: vpc, label: Private subnet }
+
+resources:
+  users: { type: user, label: Customers }
+  lb: { type: loadbalancer, in: public, label: ALB }
+  web: { type: server, in: public, label: Web }
+  db: { type: database, in: private, icon: "@db", label: Orders DB }
+  cache: { type: cache, in: private, label: Sessions }
+
+links:
+  - users -> lb
+  - lb -> web
+  - web -> db
+  - { from: web, to: cache, label: sessions, style: dashed }

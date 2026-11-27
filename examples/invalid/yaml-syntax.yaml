@@ -1,0 +1,5 @@
+version: 1
+resources:
+  web: { type: server
+  db:
+    type: database

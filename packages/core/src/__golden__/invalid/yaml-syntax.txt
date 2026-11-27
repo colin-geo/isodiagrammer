@@ -1,0 +1,1 @@
+4:3 error E_YAML_SYNTAX Flow map in block collection must be sufficiently indented and end with a }
