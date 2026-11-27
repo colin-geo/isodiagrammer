@@ -167,6 +167,11 @@ describe("applyOpToLayout", () => {
     expect(into.nodes.find((n) => n.id === "db")).toMatchObject({ parent: "vpc", abs: [1, 1] });
   });
 
+  test("pinAll pins without moving anything", () => {
+    const out = applyOpToLayout(LAYOUT, { kind: "pinAll", nodes: [{ id: "web", at: [10, 2] }] });
+    expect(out.nodes.find((n) => n.id === "web")).toMatchObject({ pinned: true, at: [10, 2] });
+  });
+
   test("consecutive nudges accumulate", () => {
     let l = LAYOUT;
     for (const key of ["ArrowRight", "ArrowDown"]) {

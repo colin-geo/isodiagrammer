@@ -6,11 +6,13 @@
 import type { Diagnostic, DocPath } from "../diagnostics.ts";
 import {
   type DiagramDsl,
+  type DirectionName,
   type FaceName,
   type IconRefDsl,
   LINK_PATTERN,
   type ResourceDsl,
   type ShapeName,
+  type SideName,
 } from "../dsl/schema.ts";
 import { type SourceMap, withRange } from "../parse/parse.ts";
 import { CATALOG, DEFAULT_VISUAL } from "./catalog.ts";
@@ -63,14 +65,21 @@ export interface LinkModel {
   arrow: "end" | "start" | "both" | "none";
   route: "orthogonal" | "straight";
   color: string | undefined;
+  /** absolute world cells */
+  via: Vec2[];
+  fromSide: Side | undefined;
+  toSide: Side | undefined;
   path: DocPath;
 }
+
+export type Side = SideName;
 
 export interface ResolvedSettings {
   rotation: Rotation;
   grid: "none" | "simple" | "technical";
   spacing: number;
   groupPadding: number;
+  direction: DirectionName;
   canvas: { at: Vec2 | undefined; size: Vec2 | undefined; padding: number };
   theme: "light" | "dark";
 }
@@ -115,6 +124,7 @@ export async function resolveDiagram(
     grid: s.grid?.style ?? "technical",
     spacing: s.layout?.spacing ?? 3,
     groupPadding: s.layout?.groupPadding ?? 2,
+    direction: s.layout?.direction ?? "right",
     canvas: { at: s.canvas?.at, size: s.canvas?.size, padding: s.canvas?.padding ?? 2 },
     theme: s.theme ?? "light",
   };
@@ -325,6 +335,9 @@ export async function resolveDiagram(
         arrow: op === "->" ? "end" : op === "<->" ? "both" : "none",
         route: "orthogonal",
         color: undefined,
+        via: [],
+        fromSide: undefined,
+        toSide: undefined,
         path,
       };
     } else {
@@ -337,6 +350,9 @@ export async function resolveDiagram(
         arrow: l.arrow ?? "end",
         route: l.route ?? "orthogonal",
         color: l.color,
+        via: (l.via ?? []).map(([x, y]) => [x, y] as Vec2),
+        fromSide: l.fromSide,
+        toSide: l.toSide,
         path,
       };
     }
@@ -362,6 +378,25 @@ export async function resolveDiagram(
       ok = false;
     }
     if (!ok) return;
+    // An arrowhead on a hidden (back) side of a solid can't be seen.
+    const solid = (id: string) => {
+      const r = resources.find((x) => x.id === id);
+      return !!r && r.shape !== "plane" && r.height > 0;
+    };
+    const ends = [
+      ["toSide", link.toSide, link.to, link.arrow === "end" || link.arrow === "both"],
+      ["fromSide", link.fromSide, link.from, link.arrow === "start" || link.arrow === "both"],
+    ] as const;
+    for (const [key, side, id, arrow] of ends) {
+      if (arrow && side?.startsWith("back-") && solid(id))
+        err(
+          "W_HIDDEN_ARROW",
+          `The arrowhead on "${id}" is on its ${side} side, which is hidden behind it`,
+          [...path, key],
+          false,
+          "Use left or right, the sides that face the viewer.",
+        );
+    }
     linkIds.add(link.id);
     links.push(link);
   });

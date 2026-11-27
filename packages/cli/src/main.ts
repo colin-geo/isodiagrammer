@@ -5,11 +5,15 @@ import { readFile, writeFile } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
+  applyChanges,
+  applyEdit,
   type CompileResult,
   compile,
   type Diagnostic,
   dslJsonSchema,
   hasErrors,
+  layoutInfo,
+  pinAllOp,
   VERSION,
 } from "@isodiagrammer/core";
 import { nodeIconProvider } from "./icons.ts";
@@ -19,6 +23,9 @@ const HELP = `isodiagram ${VERSION} — isometric infrastructure diagrams from Y
 Usage:
   isodiagram render <file.yaml> -o <out.svg|out.png> [--scale 2] [--theme light|dark] [--watch]
   isodiagram validate <file.yaml>... [--format text|json]
+  isodiagram freeze <file.yaml> [--stdout]
+                                    Pin every auto-placed node: write its computed at: into
+                                    the file (comments and formatting are kept)
   isodiagram schema                 Print the DSL JSON Schema (for VS Code yaml.schemas)
 
 Options:
@@ -27,6 +34,7 @@ Options:
       --theme <name>    Override settings.theme
   -w, --watch           Re-render when the input file changes
       --format <fmt>    Diagnostics format for validate: text (default) or json
+      --stdout          freeze: print the result instead of rewriting the file
   -h, --help            Show this help
   -v, --version         Show the version
 
@@ -44,6 +52,7 @@ export async function main(argv: string[]): Promise<number> {
       theme: { type: "string" },
       watch: { type: "boolean", short: "w" },
       format: { type: "string" },
+      stdout: { type: "boolean" },
       help: { type: "boolean", short: "h" },
       version: { type: "boolean", short: "v" },
     },
@@ -81,6 +90,26 @@ export async function main(argv: string[]): Promise<number> {
       if (json) out(JSON.stringify(report, null, 2));
       else if (!failed) err(`✓ ${files.length === 1 ? files[0] : `${files.length} files`} OK`);
       return failed ? 1 : 0;
+    }
+
+    case "freeze": {
+      const [file] = files;
+      if (!file || files.length > 1) throw new UsageError("freeze needs exactly one input file");
+      const { result, text } = await compileFile(file, theme);
+      printDiagnostics(file, result, text);
+      if (hasErrors(result.diagnostics)) {
+        err("not frozen: fix the errors first");
+        return 1;
+      }
+      const layout = layoutInfo(result);
+      const op = layout && pinAllOp(layout);
+      const frozen = op ? applyChanges(text, applyEdit(text, op)) : text;
+      if (values.stdout) process.stdout.write(frozen);
+      else if (op) await writeFile(file, frozen);
+      if (op?.kind === "pinAll")
+        err(`pinned ${op.nodes.length} node(s)${values.stdout ? "" : ` in ${file}`}`);
+      else err("nothing to freeze: every node is already pinned");
+      return 0;
     }
 
     case "render": {

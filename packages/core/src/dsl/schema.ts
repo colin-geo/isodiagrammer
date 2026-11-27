@@ -91,6 +91,12 @@ export const LINK_PATTERN =
 export const LinkStyle = z.enum(["solid", "dashed", "dotted"]);
 export const Arrow = z.enum(["end", "start", "both", "none"]);
 export const Route = z.enum(["orthogonal", "straight"]);
+export const Side = z
+  .enum(["left", "right", "back-left", "back-right"])
+  .describe(
+    "Side of the footprint as seen on screen: left/right are the visible front sides, back-left/back-right the hidden ones",
+  );
+export const Direction = z.enum(["right", "down", "left", "up"]);
 
 export const LinkObject = z.strictObject({
   from: Id,
@@ -101,6 +107,13 @@ export const LinkObject = z.strictObject({
   arrow: Arrow.optional(),
   route: Route.optional(),
   color: Color.optional(),
+  via: z
+    .array(Vec2)
+    .min(1)
+    .optional()
+    .describe("Grid cells [x, y] (absolute) the route must pass through, in order"),
+  fromSide: Side.optional().describe("Side the link leaves from (orthogonal routes)"),
+  toSide: Side.optional().describe("Side the link arrives on (orthogonal routes)"),
 });
 export const Link = z.union([
   z.string().regex(LINK_PATTERN, 'link shorthand is "a -> b", "a <-> b" or "a -- b"'),
@@ -118,6 +131,9 @@ export const Settings = z.strictObject({
     .strictObject({
       spacing: z.number().int().min(0).optional().describe("Cells between auto-placed siblings"),
       groupPadding: z.number().int().min(0).optional().describe("Cells of padding inside groups"),
+      direction: Direction.optional().describe(
+        "Flow direction for auto-layout: right = +x (towards the lower right at rotation 0), down = +y (lower left)",
+      ),
     })
     .optional(),
   canvas: z
@@ -172,6 +188,8 @@ export type TypeDefDsl = z.infer<typeof TypeDef>;
 export type LinkDsl = z.infer<typeof Link>;
 export type FaceName = z.infer<typeof Face>;
 export type ShapeName = z.infer<typeof Shape>;
+export type SideName = z.infer<typeof Side>;
+export type DirectionName = z.infer<typeof Direction>;
 
 /** JSON Schema for editors (CodeMirror, VS Code `yaml.schemas`). */
 export function dslJsonSchema(): object {

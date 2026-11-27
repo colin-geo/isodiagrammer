@@ -95,6 +95,21 @@ resources:
     expect(codes(diagnostics)).toEqual(["E_NEGATIVE_AT"]);
   });
 
+  test("via, fromSide and toSide; an arrowhead on a hidden side warns", async () => {
+    const { model, diagnostics } = await resolveText(`version: 1
+resources: { a: {}, b: {}, p: { shape: plane } }
+links:
+  - { from: a, to: b, via: [[3, 4]], fromSide: back-left, toSide: right }
+  - { from: b, to: a, toSide: back-right }
+  - { from: a, to: p, toSide: back-right }
+  - { from: b, to: p, fromSide: back-left, arrow: end }
+`);
+    expect(model.links[0]).toMatchObject({ via: [[3, 4]], fromSide: "back-left", toSide: "right" });
+    // Only b->a: p is a flat plane, and the last link has no start arrow.
+    expect(codes(diagnostics)).toEqual(["W_HIDDEN_ARROW"]);
+    expect(diagnostics[0]?.path).toEqual(["links", 1, "toSide"]);
+  });
+
   test("link shorthand and object forms", async () => {
     const { model } = await resolveText(`version: 1
 resources: { a: {}, b: {} }

@@ -7,6 +7,8 @@ import { renderSvg } from "./render/svg.ts";
 import { type IconProvider, noIcons } from "./resolve/icons.ts";
 import { type Model, resolveDiagram } from "./resolve/resolve.ts";
 import { buildScene, type Scene } from "./scene/build.ts";
+import { rotateRect } from "./scene/iso.ts";
+import { groupLabelCells } from "./scene/labels.ts";
 
 export interface CompileOptions {
   icons?: IconProvider;
@@ -43,10 +45,23 @@ export async function compile(text: string, opts: CompileOptions = {}): Promise<
   );
   if (opts.theme) model.settings.theme = opts.theme;
   const { placement, diagnostics: layoutDiags } = await placeNodes(model, parse.sourceMap);
-  const solid = new Set(
-    model.resources.filter((r) => r.shape !== "plane" && r.height > 0).map((r) => r.id),
+  const heights = new Map(
+    model.resources.map((r) => [r.id, r.shape === "plane" ? 0 : Math.max(0, r.height)]),
   );
-  const routes = routeLinks(model.links, placement, model.settings.rotation, (id) => solid.has(id));
+  const rotation = model.settings.rotation;
+  const groupLabels = model.groups.flatMap((g) => {
+    const p = placement.get(g.id);
+    if (!p || !g.label) return [];
+    const v = rotateRect({ x: p.abs[0], y: p.abs[1], w: p.size[0], d: p.size[1] }, rotation);
+    return [groupLabelCells(v, g.label)];
+  });
+  const routes = routeLinks(
+    model.links,
+    placement,
+    rotation,
+    (id) => heights.get(id) ?? 0,
+    groupLabels,
+  );
   const scene = buildScene(model, placement, routes);
   const svg = renderSvg(scene, { ids: opts.ids ?? true });
   const diagnostics = sortDiagnostics([...parse.diagnostics, ...resolveDiags, ...layoutDiags]);

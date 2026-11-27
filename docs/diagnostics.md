@@ -24,4 +24,5 @@ The engine is best-effort: wherever possible the offending part is repaired or s
 | `W_UNKNOWN_TYPE` | warning | `type:` is neither built in nor defined under `types`. | Drawn as a plain grey box. |
 | `W_ICON_NOT_FOUND` | warning | An icon file, URL or `builtin:` name couldn't be loaded. | The icon is skipped. |
 | `W_OUTSIDE_CANVAS` | warning | Reserved: something lies outside a fixed `settings.canvas`. | — |
+| `W_HIDDEN_ARROW` | warning | A link's `toSide` (or `fromSide`, for a start arrow) puts an arrowhead on the back side of a solid, where the solid hides it. | The route is drawn as asked; use `left` or `right`. |
 | `E_LAYOUT` | error | Automatic layout failed unexpectedly (please report it). | Unpinned nodes are packed, without overlapping, near their parent's origin. |

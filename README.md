@@ -2,7 +2,7 @@
 
 Turn a YAML description of your infrastructure into a Cloudcraft-style **isometric diagram**, with automatic layout, fine-tuning with `at:` coordinates, and SVG/PNG export. Comes as a web editor (live preview, drag-and-drop that writes back to your YAML, autocomplete, export) and a CLI for docs and CI pipelines.
 
-> **Status:** early development: milestones M0–M3 done (engine, CLI, web editor with drag-and-drop). See [PLAN.md](PLAN.md) for the design and roadmap.
+> **Status:** early development: milestones M0–M4 done (engine, CLI, web editor with drag-and-drop, obstacle-avoiding link routing). See [PLAN.md](PLAN.md) for the design and roadmap.
 
 ```yaml
 version: 1
@@ -23,7 +23,10 @@ links:
   - users -> lb
   - lb -> web
   - { from: web, to: db, label: SQL, style: dashed }
+  - { from: web, to: users, toSide: right, via: [[2, 9]] }   # steer a route by hand
 ```
+
+Links route around boxes automatically and keep their arrowheads on sides you can see. Steer them with `via:` waypoints and `fromSide`/`toSide` (`left`, `right`, `back-left`, `back-right`, as seen on screen). Set the overall flow with `settings: { layout: { direction: down } }`.
 
 More in [`examples/`](examples/).
 
@@ -34,7 +37,7 @@ pnpm install
 pnpm dev          # http://localhost:5173
 ```
 
-YAML on the left, live preview on the right. **Drag** things in the preview to fine-tune the automatic layout: the editor updates with an `at:` (and `in:` when you drop into another group), keeping your comments. Click to select (synced with the editor), use the arrow keys to nudge, **Unpin** to hand a node back to auto-layout, and <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo from either side. Schema autocomplete (<kbd>Ctrl</kbd>+<kbd>Space</kbd>) and hover docs work in the editor; problems are underlined and listed below it. Drag or scroll to pan the preview, and use <kbd>Ctrl</kbd>+wheel to zoom. Your work autosaves in the browser; **Open**/**Save** read and write `.yaml` files, and **Export** produces SVG or PNG.
+YAML on the left, live preview on the right. **Drag** things in the preview to fine-tune the automatic layout: the editor updates with an `at:` (and `in:` when you drop into another group), keeping your comments. Click to select (synced with the editor), use the arrow keys to nudge, **Unpin** to hand a node back to auto-layout, **Pin all** to freeze the whole layout into `at:` values, and <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo from either side. Schema autocomplete (<kbd>Ctrl</kbd>+<kbd>Space</kbd>) and hover docs work in the editor; problems are underlined and listed below it. Drag or scroll to pan the preview, and use <kbd>Ctrl</kbd>+wheel to zoom. Your work autosaves in the browser; **Open**/**Save** read and write `.yaml` files, and **Export** produces SVG or PNG.
 
 ## CLI
 
@@ -43,6 +46,7 @@ isodiagram render arch.yaml -o arch.svg
 isodiagram render arch.yaml -o arch.png --scale 2 --theme dark
 isodiagram render arch.yaml -o arch.svg --watch
 isodiagram validate arch.yaml                # exit 1 on errors; --format json for CI
+isodiagram freeze arch.yaml                  # write every computed position as at: (--stdout to preview)
 isodiagram schema > isodiagram.schema.json   # editor autocomplete
 ```
 

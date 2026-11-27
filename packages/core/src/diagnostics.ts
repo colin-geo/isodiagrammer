@@ -33,6 +33,7 @@ export type DiagnosticCode =
   | "W_UNKNOWN_TYPE"
   | "W_ICON_NOT_FOUND"
   | "W_OUTSIDE_CANVAS"
+  | "W_HIDDEN_ARROW"
   | "E_LAYOUT";
 
 export const hasErrors = (ds: readonly Diagnostic[]) => ds.some((d) => d.severity === "error");

@@ -21,6 +21,13 @@ import {
   rotateRect,
   S,
 } from "./iso.ts";
+import {
+  boxesHit,
+  GROUP_LABEL,
+  labelCandidates,
+  polygonHitsBox,
+  type ScreenBox,
+} from "./labels.ts";
 import { THEMES, type Theme, textWidth } from "./theme.ts";
 
 export type Prim =
@@ -168,9 +175,25 @@ export function buildScene(
     return p?.parent ? 1 + depthOf(p.parent) : 0;
   };
   const groups = [...model.groups].sort((a, b) => depthOf(a.id) - depthOf(b.id));
+  const groupLabelPolys: Pt[][] = [];
   for (const g of groups) {
     const p = placement.get(g.id);
-    if (p) items.push(groupItem(g, view(p), theme, P));
+    if (!p) continue;
+    const v = view(p);
+    items.push(groupItem(g, v, theme, P));
+    const m = groupLabelMatrix(v);
+    const w = textWidth(g.label, GROUP_LABEL.size, GROUP_LABEL.weight);
+    const hgt = GROUP_LABEL.size;
+    groupLabelPolys.push(
+      (
+        [
+          [0, 0.3 * hgt],
+          [w, 0.3 * hgt],
+          [w, -hgt],
+          [0, -hgt],
+        ] as const
+      ).map(([u, vv]) => [m[0] * u + m[2] * vv + m[4], m[1] * u + m[3] * vv + m[5]] as Pt),
+    );
   }
 
   // ---- planes (floor) -------------------------------------------------------------------
@@ -193,6 +216,7 @@ export function buildScene(
 
   // ---- links (floor) + their labels (overlay) ---------------------------------------
   const linkLabels: SceneItem[] = [];
+  const pendingLabels: { id: string; label: string; sp: Pt[] }[] = [];
   for (const { link, points } of routes) {
     const vp = points; // already in the view frame
     const sp = vp.map(([x, y]) => P(x, y));
@@ -215,27 +239,7 @@ export function buildScene(
     if (link.arrow === "start" || link.arrow === "both")
       prims.push(arrowHead([...vp].reverse(), color, P));
     items.push({ id: link.id, role: "link", layer: "floor", prims });
-    if (link.label) {
-      const [mx, my] = midpoint(sp);
-      growText(mx, my - 6, link.label, 12, "middle");
-      linkLabels.push({
-        id: link.id,
-        role: "label",
-        layer: "overlay",
-        prims: [
-          {
-            kind: "text",
-            x: mx,
-            y: my - 6,
-            text: link.label,
-            size: 12,
-            fill: theme.mutedText,
-            anchor: "middle",
-            halo: theme.halo,
-          },
-        ],
-      });
-    }
+    if (link.label) pendingLabels.push({ id: link.id, label: link.label, sp });
   }
 
   // ---- solids (depth-sorted) ------------------------------------------------------------
@@ -243,6 +247,9 @@ export function buildScene(
   const rects = solids.map((r) => view(placement.get(r.id) as Placed));
   const order = depthOrder(rects.map((v, i) => ({ ...v, h: (solids[i] as ResourceModel).height })));
   const labels: SceneItem[] = [];
+  /** screen polygons link labels must avoid */
+  const obstacles: Pt[][] = [...groupLabelPolys];
+  const taken: ScreenBox[] = [];
   for (const i of order) {
     const r = solids[i] as ResourceModel;
     const v = rects[i] as Rect;
@@ -253,6 +260,16 @@ export function buildScene(
           ? decal(r, v, P)
           : box(r, v, theme, P);
     items.push({ id: r.id, role: "resource", layer: "solids", prims });
+    const { x, y, w, d } = v;
+    const h = r.height;
+    obstacles.push([
+      project(x, y, h),
+      project(x + w, y, h),
+      project(x + w, y),
+      project(x + w, y + d),
+      project(x, y + d),
+      project(x, y + d, h),
+    ]);
   }
 
   // ---- resource labels ------------------------------------------------------------------
@@ -283,6 +300,7 @@ export function buildScene(
       const ly = project(v.x + v.w, v.y + v.d)[1] + 16;
       const lx = project(v.x + v.w / 2, v.y + v.d / 2)[0];
       growText(lx, ly, r.label, 13, "middle", 500);
+      taken.push(textBox(lx, ly, r.label, 13, 500));
       labels.push({
         id: r.id,
         role: "label",
@@ -302,6 +320,35 @@ export function buildScene(
         ],
       });
     }
+  }
+  // ---- link labels: first candidate position that collides with nothing --------------
+  for (const { id, label, sp } of pendingLabels) {
+    const candidates = labelCandidates(sp);
+    const fits = ([x, y]: Pt) => {
+      const b = textBox(x, y - 6, label, 12);
+      const roomy = { x0: b.x0 - 6, x1: b.x1 + 6, y0: b.y0 - 2, y1: b.y1 + 2 };
+      return !taken.some((t) => boxesHit(t, roomy)) && !obstacles.some((o) => polygonHitsBox(o, b));
+    };
+    const [mx, my] = candidates.find(fits) ?? (candidates[0] as Pt);
+    taken.push(textBox(mx, my - 6, label, 12));
+    growText(mx, my - 6, label, 12, "middle");
+    linkLabels.push({
+      id,
+      role: "label",
+      layer: "overlay",
+      prims: [
+        {
+          kind: "text",
+          x: mx,
+          y: my - 6,
+          text: label,
+          size: 12,
+          fill: theme.mutedText,
+          anchor: "middle",
+          halo: theme.halo,
+        },
+      ],
+    });
   }
   items.push(...labels, ...linkLabels);
 
@@ -355,7 +402,7 @@ type ProjectFn = (x: number, y: number, z?: number) => Pt;
 function groupItem(g: GroupModel, v: Rect, theme: Theme, P: ProjectFn): SceneItem {
   const outline = [P(v.x, v.y), P(v.x + v.w, v.y), P(v.x + v.w, v.y + v.d), P(v.x, v.y + v.d)];
   // Front-left edge: nothing inside the group can stand in front of it.
-  const m = groundMatrix(v.x + 0.35, v.y + v.d - 0.3);
+  const m = groupLabelMatrix(v);
   return {
     id: g.id,
     role: "group",
@@ -375,14 +422,23 @@ function groupItem(g: GroupModel, v: Rect, theme: Theme, P: ProjectFn): SceneIte
         x: 0,
         y: 0,
         text: g.label,
-        size: 14,
-        weight: 600,
+        size: GROUP_LABEL.size,
+        weight: GROUP_LABEL.weight,
         fill: shade(g.color, -0.25),
         anchor: "start",
         matrix: m,
       },
     ],
   };
+}
+
+const groupLabelMatrix = (v: Rect): Matrix =>
+  groundMatrix(v.x + GROUP_LABEL.inset, v.y + v.d - GROUP_LABEL.baseline);
+
+/** Screen box of a middle-anchored text label with baseline at y. */
+function textBox(x: number, y: number, text: string, size: number, weight = 400): ScreenBox {
+  const w = textWidth(text, size, weight);
+  return { x0: x - w / 2 - 3, x1: x + w / 2 + 3, y0: y - size, y1: y + size * 0.35 };
 }
 
 function growGroundText(m: Matrix, text: string, size: number, grow: (p: Pt) => void) {
@@ -413,22 +469,6 @@ function arrowHead(vp: readonly Vec2[], color: string, P: ProjectFn): Prim {
     d: pathOf([P(end[0], end[1]), P(bx - uy * W, by + ux * W), P(bx + uy * W, by - ux * W)]),
     fill: color,
   };
-}
-
-function midpoint(pts: readonly Pt[]): Pt {
-  const segs = pts.slice(1).map((p, i) => {
-    const a = pts[i] as Pt;
-    return { a, b: p, len: Math.hypot(p[0] - a[0], p[1] - a[1]) };
-  });
-  let half = segs.reduce((s, x) => s + x.len, 0) / 2;
-  for (const s of segs) {
-    if (half <= s.len) {
-      const t = s.len ? half / s.len : 0;
-      return [s.a[0] + (s.b[0] - s.a[0]) * t, s.a[1] + (s.b[1] - s.a[1]) * t];
-    }
-    half -= s.len;
-  }
-  return pts[0] ?? [0, 0];
 }
 
 function box(r: ResourceModel, v: Rect, theme: Theme, P: ProjectFn): Prim[] {

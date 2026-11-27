@@ -123,9 +123,10 @@ notes:
 - **Group `size` is optional.** If omitted, the group auto-fits its children plus `groupPadding`. If given, children must fit, and an error is reported if they don't.
 - **Footprints within the same parent may not overlap** (error). This guarantees a valid draw order (§6.3).
 - **Links**
-  - String shorthand: `a -> b`, `a <-> b`, `a -- b` (no arrow). Object form: `{ from, to, label, style, route, via, id }`.
+  - String shorthand: `a -> b`, `a <-> b`, `a -- b` (no arrow). Object form: `{ from, to, label, style, arrow, route, via, fromSide, toSide, color, id }`.
   - Default link id is `from->to`. If the same pair is linked twice, each link needs an explicit `id`.
-  - `route: orthogonal | straight` (default orthogonal). `via:` gives grid waypoints.
+  - `route: orthogonal | straight` (default orthogonal). `via:` gives absolute grid cells the route passes through, in order.
+  - `fromSide` / `toSide`: `left | right | back-left | back-right`, named as they look on screen (view-relative, like icon faces). `left`/`right` are the visible front sides.
 - **Shapes:** `box`, `cylinder`, `plane` (flat area on the ground), `decal` (icon standing upright and facing the viewer, or lying on the ground).
 - **Faces for icons** are named as they appear on screen: `top | left | right | all`. Values are view-relative, so they behave intuitively when the view is rotated.
 - **Visual resolution order:** resource fields → `types.<type>` → built-in catalog defaults.
@@ -290,7 +291,7 @@ isodiagram render arch.yaml -o arch.svg            # format from extension: .svg
 isodiagram render arch.yaml -o arch.png --scale 2 --theme dark
 isodiagram render arch.yaml --watch
 isodiagram validate arch.yaml                      # non-zero exit on errors; --format json for CI
-isodiagram freeze arch.yaml                        # pin all positions (writes file)
+isodiagram freeze arch.yaml                        # pin all positions (rewrites the file; --stdout prints instead)
 isodiagram schema > isodiagram.schema.json         # for VS Code yaml.schemas
 isodiagram icons import aws ./Asset-Package.zip -o ./icons/aws
 ```
@@ -356,7 +357,7 @@ Each milestone ends with something usable. The three riskiest pieces are spiked 
 - move/reparent/unpin/resize, snapped ghost and validity feedback, single undo stack, selection sync.
 - _Exit:_ the Playwright drag/undo suite passes, and comments survive every edit op.
 
-**M4: Auto layout and routing**
+**M4: Auto layout and routing** ✅ done, notes in §18
 
 - ELK placement exists since M1. M4 work: quality with pinned nodes, `settings.layout.direction`, `freeze`/"Pin all".
 - A* orthogonal routing with obstacle avoidance and link separation (M1's wrap-around routes can run long and overlap each other), `via`, `fromSide`/`toSide`.
@@ -389,7 +390,7 @@ Each milestone ends with something usable. The three riskiest pieces are spiked 
 ## 13. Open questions and risks
 
 - **Vendor icon licensing**: confirm AWS, Azure and GCP redistribution terms before bundling, and confirm Font Awesome's attribution expectations for CC BY icons.
-- **Layout quality with pins**: snap-and-nudge works (§14), but ELK still lays out as if pinned nodes sat where ELK would have put them. Unpinned neighbours can end up looking unrelated to a pinned node. Revisit in M4 with real diagrams. One option: seed ELK with pinned positions via its interactive strategies.
+- **Layout quality with pins** (revisited in M4, §18): pinning deliberately never moves unpinned siblings, so a node dragged far away leaves its neighbours where they were. That's the predictable choice; seeding ELK with pinned positions (interactive strategies) is still an option if real diagrams show neighbours looking unrelated to a pinned node.
 - **elkjs licence**: EPL-2.0 (or GPL-3.0). Fine as an unmodified dependency of an MIT project. Keep it unmodified and list it in the Credits page and third-party notices.
 - **elkjs size**: about 1 MB+, so it must be lazy-loaded. If that's unacceptable, a small custom layered layout is the fallback.
 - **Font consistency** (raised in priority after M1: resvg fell back to a monospace system font when Inter wasn't installed, so PNGs from the CLI look different from the browser): identical metrics and rendering across browsers and resvg depend on bundling and, where possible, embedding one font.
@@ -521,8 +522,53 @@ The schema rejects these as unknown keys rather than silently ignoring them.
 - Fast consecutive nudges or drags read the layout before the previous edit had re-rendered. Edits are now also applied optimistically to the in-memory layout (`applyOpToLayout`), and the next render replaces it.
 
 **Still open:**
-- **Moved to M4:** `pinAll`/freeze.
+- **Moved to M4:** `pinAll`/freeze (done, §18).
 - **Moved to M6 (polish):** a resource palette (drag in new resources), drawing links by dragging between nodes, and delete with a dangling-reference check. None is needed for the core "fine-tune the auto-layout" workflow.
 - **Links during a drag:** they don't follow the node (they re-route on drop), and the dragged node isn't re-sorted for depth mid-drag. Both are cosmetic.
 
 **Test counts:** 119 unit tests and 19 Playwright tests. The drag suite covers move, moving between groups, an invalid drop, Alt-drag, selection both ways, nudge, unpin, resize, panning, undo/redo, and comment preservation.
+
+---
+
+## 18. M4 notes (2026-11-27)
+
+**Routing (`layout/route.ts`):** A* over (cell, direction) states in the view frame. Lanes run through cell centres, so a route is always half a cell clear of a footprint and adjacent lanes are a full cell apart.
+- **Obstacles:** solid footprints. Groups and planes are not obstacles.
+- **Costs** (all in `COST`):
+  - 1 per cell
+  - +2 per bend
+  - +2 per cell of floor hidden behind a solid. The test is exact: a floor point is hidden if the line of sight `(x+t, y+t, t)` enters a box.
+  - +3 per cell under a group label
+  - +3 per cell already used by a link running the same way, +1 where one crosses. Earlier links (document order) get first pick, and later ones spread into neighbouring lanes.
+  - Ports cost +0.5 per cell away from the middle of their side, +2 for leaving a solid from a back side, and +3 for reusing another link's port, so links fan out across a side.
+- **Visible arrowheads:** an arrowhead into a solid may only use its front ports (`right` = x1, `left` = y1). A start arrow obeys the same rule at the source.
+  - Turning on the very last half-cell into a port costs 3. Routes therefore usually approach an arrowhead head-on, but an L into a corner is still allowed when the alternative is a long hook.
+- **`via`** is routed leg by leg, carrying the travel direction across each waypoint. A waypoint inside a solid is allowed for that link.
+- **`fromSide`/`toSide`** restrict the ports. An arrowhead on a back side of a solid gives `W_HIDDEN_ARROW`.
+- **Fallback:** if A* finds no way (e.g. a node walled in), the M1 I/L router is used. It always succeeds.
+- **Property tests:** random layouts at every rotation check that segments are axis-aligned, that no route passes through any solid, and that the arrowhead lands on a visible front edge.
+
+**Placement:**
+- **`settings.layout.direction`** (`right | down | left | up`) maps directly to ELK's direction. `right` is +x, which is towards the lower right at rotation 0.
+- **Compaction:** ELK's layered layout of compound graphs leaves big gaps. Its classic failure is arranging groups diagonally, which left the checkout example's VPC mostly empty. A scanline compaction pass now runs per parent, first along the flow axis and then across it. It keeps ELK's order and `spacing`, moves each node as close to the origin as possible, and never produces overlaps.
+  - It runs on every child's ELK slot, including pinned ones. So **pinning or dragging a node never moves its unpinned siblings**, and a test checks this. This is the exit criterion's "doesn't disturb the others unexpectedly".
+- Tried and dropped: ELK's `NETWORK_SIMPLEX` node placement made almost no visible difference.
+
+**Labels (`scene/labels.ts`):**
+- **Link labels** try the path midpoint first (the M1 behaviour). Next they try the middle, then the quarter points, of each segment, longest first.
+  - The first spot clear of solid silhouettes, group labels and other labels wins. Collisions are tested with the separating-axis theorem against each solid's screen hexagon.
+- **Group label cells** are shared with the router, so links stay off group labels where they can.
+
+**Freeze:**
+- `pinAllOp(layout)` produces a `pinAll` edit op, which applies as one minimal change.
+- The web app has a **Pin all** toolbar button (one undo step). It's enabled only when the layout matches the text and there are no errors.
+- `isodiagram freeze <file> [--stdout]` rewrites the file in place, and refuses to if the document has errors.
+- A test freezes the examples and checks that the SVG is byte-identical and the comments survive.
+
+**Still open:**
+- Resource labels (below each solid) don't avoid other solids yet. In the showcase, `ctr`'s label touches `api`.
+- Equal-cost routes sometimes take the outside of a cluster rather than the middle. They are the same length, but in isometric they read as a detour.
+- `straight` routes ignore obstacles, by design.
+- Long layered diagrams come out as a long diagonal strip in isometric. `direction: down` or pins are the workaround, and a wrapping or "grid" layout mode is a possible future option.
+
+**Test counts:** 140 unit tests and 20 Playwright tests. New example: `examples/routing.yaml` (`direction: down`, `via`, `fromSide`/`toSide`).

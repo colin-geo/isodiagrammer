@@ -11,7 +11,7 @@ export {
   type Severity,
 } from "./diagnostics.ts";
 export { type DiagramDsl, dslJsonSchema } from "./dsl/schema.ts";
-export { applyEdit, diffChange, type EditOp } from "./edit/ops.ts";
+export { applyEdit, diffChange, type EditOp, pinAllOp } from "./edit/ops.ts";
 export {
   applyChanges,
   removeAt,

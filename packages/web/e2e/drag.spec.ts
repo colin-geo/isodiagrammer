@@ -158,3 +158,21 @@ test("dragging the background still pans", async ({ page }) => {
   expect(after.x - before.x).toBeCloseTo(60, 0);
   expect(await editorText(page)).toBe(DOC);
 });
+
+test("Pin all writes at: for every auto-placed node, as one undo step", async ({ page }) => {
+  const auto = `version: 1
+resources:
+  a: {}   # auto
+  b: { at: [9, 9] }
+links: [a -> b]
+`;
+  await setDoc(page, auto);
+  const pinAll = page.getByRole("button", { name: "Pin all" });
+  await expect(pinAll).toBeEnabled();
+  await pinAll.click();
+  await expect.poll(() => editorText(page)).toMatch(/a: \{ at: \[\d+, \d+\] \} {3}# auto/);
+  await expect(pinAll).toBeDisabled(); // nothing left to pin
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(() => editorText(page)).toBe(auto);
+});

@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Diagnostic, EditOp, LayoutInfo } from "@isodiagrammer/core";
+import { type Diagnostic, type EditOp, type LayoutInfo, pinAllOp } from "@isodiagrammer/core";
 import { onDestroy, onMount } from "svelte";
 import { type CompileResponse, Compiler, createCompileWorker } from "./lib/compiler.ts";
 import DiagnosticsPanel from "./lib/DiagnosticsPanel.svelte";
@@ -37,6 +37,13 @@ const dirty = $derived(text !== savedText);
 const diagnostics = $derived<readonly Diagnostic[]>(result?.diagnostics ?? []);
 const errors = $derived(diagnostics.filter((d) => d.severity === "error").length);
 const warnings = $derived(diagnostics.filter((d) => d.severity === "warning").length);
+/** "Pin all" needs a layout that matches the text exactly, and something unpinned. */
+const canPinAll = $derived(
+  result?.text === text &&
+    result.svg !== undefined &&
+    errors === 0 &&
+    !!lastGoodLayout?.nodes.some((n) => !n.pinned),
+);
 const stale = $derived(
   result !== undefined && result.svg === undefined && lastGoodSvg !== undefined,
 );
@@ -92,6 +99,12 @@ function onPreviewEdit(op: EditOp) {
   } catch (e) {
     message = `Couldn't apply that change: ${(e as Error).message}`;
   }
+}
+
+/** Write every auto-placed node's position into the YAML (one undo step). */
+function pinAll() {
+  const op = lastGoodLayout && pinAllOp(lastGoodLayout);
+  if (op) onPreviewEdit(op);
 }
 
 function loadDocument(newName: string, newText: string, newHandle?: FileHandle) {
@@ -237,6 +250,13 @@ function toggleHelp() {
       <span class="sep"></span>
       <button type="button" onclick={exportSvg} disabled={!lastGoodSvg}>Export SVG</button>
       <button type="button" onclick={exportPng} disabled={!lastGoodSvg || busy}>{busy ? "Exporting…" : "Export PNG"}</button>
+      <span class="sep"></span>
+      <button
+        type="button"
+        onclick={pinAll}
+        disabled={!canPinAll}
+        title="Write every auto-placed node's position into the YAML as at:, so later edits can't move it"
+      >Pin all</button>
       <span class="sep"></span>
       <button type="button" class:active={ui.helpOpen} onclick={toggleHelp} aria-pressed={ui.helpOpen}>Help</button>
     </nav>

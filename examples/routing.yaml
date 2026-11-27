@@ -1,0 +1,30 @@
+# Link routing: automatic obstacle avoidance, plus via waypoints and fixed sides.
+version: 1
+title: Routing
+
+settings:
+  grid: { style: simple }
+  layout: { direction: down }
+
+groups:
+  edge: { label: Edge }
+  app: { label: App tier }
+
+resources:
+  dns: { type: internet, in: edge, label: DNS }
+  cdn: { type: loadbalancer, in: edge, label: CDN }
+  api: { type: server, in: app, label: API }
+  worker: { type: container, in: app, label: Worker }
+  queue: { type: queue, in: app, label: Jobs }
+  db: { type: database, label: Postgres }
+  backup: { type: storage, label: Backups, at: [16, 2] }
+
+links:
+  - dns -> cdn
+  - cdn -> api
+  - { from: api, to: queue, label: enqueue }
+  - { from: queue, to: worker, label: consume }
+  - api -> db
+  - worker -> db
+  # Forced: leave Postgres on its right side, pass through a waypoint, arrive on the left.
+  - { from: db, to: backup, fromSide: right, toSide: left, via: [[14, 12]], style: dashed, label: nightly }

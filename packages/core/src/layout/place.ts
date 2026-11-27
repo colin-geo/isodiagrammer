@@ -117,6 +117,18 @@ export async function placeNodes(
     for (const k of kids) if (k.kind === "group") resolve(k.id);
 
     const min = parentId === undefined ? 0 : pad;
+    // Compact ELK's arrangement onto the grid. This uses every child's ELK position (pinned
+    // ones too, at the slot ELK gave them), so pinning or moving a node never shifts the others.
+    const target = compact(
+      kids.flatMap((k) => {
+        const e = elkPos.get(k.id);
+        const [w, d] = sizeOf(k);
+        return e ? [{ id: k.id, x: e[0], y: e[1], w, d }] : [];
+      }),
+      min,
+      spacing,
+      model.settings.direction === "right" || model.settings.direction === "left",
+    );
     const occupied: (Rect & { id: string })[] = [];
     const place = (k: Node, at: Vec2, pinned: boolean) => {
       const size = sizeOf(k);
@@ -145,7 +157,7 @@ export async function placeNodes(
     for (const k of kids) {
       if (k.at) continue;
       const [w, d] = sizeOf(k);
-      const want = elkPos.get(k.id) ?? [min, min];
+      const want: Vec2 = target.get(k.id) ?? [min, min];
       const base: Vec2 = [Math.max(min, want[0]), Math.max(min, want[1])];
       let found: Vec2 | undefined;
       for (const [dx, dy] of SPIRAL) {
@@ -192,6 +204,43 @@ export async function placeNodes(
   return { placement, diagnostics };
 }
 
+/**
+ * Scanline compaction: keeps ELK's ordering but closes the gaps layered layout leaves
+ * (e.g. groups arranged diagonally). Along the flow axis first, then across it; each node
+ * moves as close to the origin as `gap` from every node it shares a row/column with allows.
+ * The result never overlaps.
+ */
+export function compact(
+  items: readonly (Rect & { id: string })[],
+  min: number,
+  gap: number,
+  xFirst: boolean,
+): Map<string, Vec2> {
+  const pos = new Map(items.map((it) => [it.id, { ...it }]));
+  const pass = (axis: "x" | "y") => {
+    const other = axis === "x" ? "y" : "x";
+    const len = axis === "x" ? "w" : "d";
+    const olen = axis === "x" ? "d" : "w";
+    const order = [...pos.values()]
+      .map((r, i) => ({ r, i }))
+      .sort((a, b) => a.r[axis] - b.r[axis] || a.r[other] - b.r[other] || a.i - b.i)
+      .map((o) => o.r);
+    const done: (Rect & { id: string })[] = [];
+    for (const r of order) {
+      let v = min;
+      for (const p of done) {
+        if (r[other] < p[other] + p[olen] + gap && p[other] < r[other] + r[olen] + gap)
+          v = Math.max(v, p[axis] + p[len] + gap);
+      }
+      r[axis] = v;
+      done.push(r);
+    }
+  };
+  pass(xFirst ? "x" : "y");
+  pass(xFirst ? "y" : "x");
+  return new Map([...pos].map(([id, r]) => [id, [r.x, r.y] as Vec2]));
+}
+
 async function runElk(
   nodes: Node[],
   children: Map<string | undefined, Node[]>,
@@ -221,7 +270,7 @@ async function runElk(
     id: "__root__",
     layoutOptions: {
       "elk.algorithm": "layered",
-      "elk.direction": "RIGHT",
+      "elk.direction": model.settings.direction.toUpperCase(),
       "elk.hierarchyHandling": large ? "SEPARATE_CHILDREN" : "INCLUDE_CHILDREN",
       "elk.spacing.nodeNode": String(spacing * U),
       "elk.layered.spacing.nodeNodeBetweenLayers": String(spacing * U),

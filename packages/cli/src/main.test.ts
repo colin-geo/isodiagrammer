@@ -85,6 +85,32 @@ describe("isodiagram CLI", () => {
     expect(schema.required).toContain("version");
   });
 
+  test("freeze pins every auto-placed node in place; a second run has nothing to do", async () => {
+    const file = join(tmp(), "d.yaml");
+    writeFileSync(
+      file,
+      "version: 1\n# keep me\nresources:\n  a: {}   # and me\n  b: { at: [9, 9] }\nlinks: [a -> b]\n",
+    );
+    const r = await cli("freeze", file);
+    expect(r.code).toBe(0);
+    expect(r.stderr).toContain("pinned 1 node");
+    const text = readFileSync(file, "utf8");
+    expect(text).toMatch(/a: \{ at: \[\d+, \d+\] \} {3}# and me/);
+    expect(text).toContain("# keep me");
+    expect(text).toContain("b: { at: [9, 9] }");
+    const again = await cli("freeze", file, "--stdout");
+    expect(again.stdout).toBe(text);
+    expect(again.stderr).toContain("nothing to freeze");
+  });
+
+  test("freeze refuses a document with errors", async () => {
+    const file = join(tmp(), "bad.yaml");
+    const bad = "version: 1\nresources:\n  a: { in: nowhere }\n";
+    writeFileSync(file, bad);
+    expect((await cli("freeze", file)).code).toBe(1);
+    expect(readFileSync(file, "utf8")).toBe(bad);
+  });
+
   test("usage errors exit 2", async () => {
     expect((await cli("render", join(EXAMPLES, "pinned.yaml"))).code).toBe(2);
     expect((await cli("render", join(EXAMPLES, "pinned.yaml"), "-o", "x.gif")).code).toBe(2);

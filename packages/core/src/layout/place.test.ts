@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { resolveText } from "../test-helpers.ts";
-import { type Placement, placeNodes } from "./place.ts";
+import { compact, type Placement, placeNodes } from "./place.ts";
 
 async function place(text: string) {
   const { model, sourceMap } = await resolveText(text);
@@ -83,6 +83,43 @@ links: [a -> b, b -> c]
       expect(pinned.placement.get(id)?.at, id).toEqual(free.placement.get(id)?.at);
   });
 
+  test("pinning (or moving) one node doesn't move its unpinned siblings", async () => {
+    const doc = (pin: string) => `version: 1
+resources:
+  a: { ${pin} }
+  b: {}
+  c: {}
+  d: {}
+links: [a -> b, b -> c, c -> d, a -> d]
+`;
+    const free = await place(doc(""));
+    for (const pin of ["at: [40, 40]", `at: [${free.placement.get("a")?.at.join(", ")}]`]) {
+      const pinned = await place(doc(pin));
+      for (const id of ["b", "c", "d"])
+        expect(pinned.placement.get(id)?.at, `${id} with ${pin}`).toEqual(
+          free.placement.get(id)?.at,
+        );
+    }
+  });
+
+  test("layout.direction sets the flow axis", async () => {
+    const doc = (dir: string) =>
+      `version: 1\nsettings: { layout: { direction: ${dir} } }\nresources: { a: {}, b: {}, c: {} }\nlinks: [a -> b, b -> c]\n`;
+    const at = async (dir: string) => {
+      const { placement } = await place(doc(dir));
+      type V = readonly [number, number];
+      return ["a", "b", "c"].map((id) => placement.get(id)?.at) as unknown as [V, V, V];
+    };
+    const [ra, rb, rc] = await at("right");
+    expect(ra[0] < rb[0] && rb[0] < rc[0]).toBe(true);
+    const [da, db, dc] = await at("down");
+    expect(da[1] < db[1] && db[1] < dc[1]).toBe(true);
+    const [la, lb] = await at("left");
+    expect(la[0]).toBeGreaterThan(lb[0]);
+    const [ua, ub] = await at("up");
+    expect(ua[1]).toBeGreaterThan(ub[1]);
+  });
+
   test("deterministic", async () => {
     const doc =
       "version: 1\ngroups: { g: {} }\nresources: { a: { in: g }, b: { in: g }, c: {} }\nlinks: [a -> b, b -> c]\n";
@@ -140,5 +177,37 @@ links: [a -> b, b -> c]
       ).toEqual([]);
       checkInvariants(placement, 2, pins);
     }
+  });
+});
+
+describe("compact", () => {
+  test("closes diagonal gaps along the flow, then across it, without overlaps", () => {
+    const out = compact(
+      [
+        { id: "a", x: 0, y: 0, w: 4, d: 4 },
+        { id: "b", x: 10, y: 9, w: 4, d: 4 }, // diagonal: no shared rows or columns
+        { id: "c", x: 0, y: 20, w: 2, d: 2 },
+      ],
+      2,
+      3,
+      true,
+    );
+    expect(out.get("a")).toEqual([2, 2]);
+    expect(out.get("b")).toEqual([2, 9]); // nothing shares its rows: moves to the left edge
+    expect(out.get("c")).toEqual([2, 16]);
+  });
+
+  test("keeps order and spacing between nodes sharing a row", () => {
+    const out = compact(
+      [
+        { id: "a", x: 0, y: 0, w: 2, d: 2 },
+        { id: "b", x: 30, y: 1, w: 2, d: 2 },
+      ],
+      0,
+      3,
+      true,
+    );
+    expect(out.get("a")).toEqual([0, 0]);
+    expect(out.get("b")).toEqual([5, 0]);
   });
 });

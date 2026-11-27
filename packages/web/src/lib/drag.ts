@@ -168,6 +168,13 @@ export function nudgeDelta(key: string, rotation: 0 | 90 | 180 | 270): Vec2 | un
  * the re-render starts from the right place. The next compile result replaces this anyway.
  */
 export function applyOpToLayout(layout: LayoutInfo, op: EditOp): LayoutInfo {
+  if (op.kind === "pinAll") {
+    const ids = new Set(op.nodes.map((n) => n.id));
+    return {
+      ...layout,
+      nodes: layout.nodes.map((n) => (ids.has(n.id) ? { ...n, pinned: true } : n)),
+    };
+  }
   const nodes = layout.nodes.map((n) => ({ ...n }));
   const map = new Map(nodes.map((n) => [n.id, n]));
   const n = map.get(op.id);
